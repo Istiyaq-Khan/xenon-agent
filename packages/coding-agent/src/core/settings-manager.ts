@@ -173,6 +173,35 @@ export interface Settings {
 	markdown?: MarkdownSettings;
 	warnings?: WarningSettings;
 	sessionDir?: string; // Custom session storage directory (same format as --session-dir CLI flag)
+	customProviders?: Record<string, CustomProviderConfig> | CustomProviderConfig[];
+}
+
+export interface CustomProviderModelConfig {
+	id: string;
+	name?: string;
+	reasoning?: boolean;
+	contextWindow?: number;
+	maxTokens?: number;
+	input?: ("text" | "image")[];
+	cost?: {
+		input: number;
+		output: number;
+		cacheRead: number;
+		cacheWrite: number;
+	};
+}
+
+export interface CustomProviderConfig {
+	id?: string;
+	name?: string;
+	protocol?: "openai-compatible" | "anthropic-compatible" | "openai-completions" | "anthropic-messages" | string;
+	baseUrl?: string;
+	uri?: string;
+	apiKey?: string;
+	apiKeyEnv?: string;
+	models?: (string | CustomProviderModelConfig)[];
+	headers?: Record<string, string>;
+	compat?: unknown;
 }
 
 export interface AgentTracesSettings {

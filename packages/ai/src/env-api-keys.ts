@@ -99,11 +99,13 @@ function getApiKeyEnvVars(provider: string): readonly string[] | undefined {
 		return ["ANTHROPIC_OAUTH_TOKEN", "ANTHROPIC_API_KEY"];
 	}
 
-	if (provider === "xenon-inference") {
-		return ["XENON_API_KEY"];
+	if (provider === "nvidia" || provider === "nvidia-nim") {
+		return ["NVIDIA_API_KEY"];
 	}
 
 	const envMap: Record<string, string> = {
+		nvidia: "NVIDIA_API_KEY",
+		"nvidia-nim": "NVIDIA_API_KEY",
 		openai: "OPENAI_API_KEY",
 		"azure-openai-responses": "AZURE_OPENAI_API_KEY",
 		deepseek: "DEEPSEEK_API_KEY",

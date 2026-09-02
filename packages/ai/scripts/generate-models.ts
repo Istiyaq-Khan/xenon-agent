@@ -19,7 +19,6 @@ import {
 	Model,
 	type OpenAICompletionsCompat,
 } from "../src/types.js";
-import { MODELS as EXISTING_MODELS } from "../src/models.generated.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -112,129 +111,7 @@ const ZAI_THINKING_COMPAT: OpenAICompletionsCompat = {
 	thinkingFormat: "zai",
 };
 
-const XENON_INFERENCE_BASE_URL = "https://api.pinference.ai/api/v1";
-const XENON_INFERENCE_COMPAT: OpenAICompletionsCompat = {
-	supportsStore: false,
-	supportsDeveloperRole: false,
-	supportsReasoningEffort: true,
-	maxTokensField: "max_tokens",
-	supportsStrictMode: false,
-};
-interface XenonInferenceCatalogEntry {
-	id: string;
-	input: number;
-	output: number;
-	contextWindow?: number;
-	maxTokens?: number;
-	reasoning?: boolean;
-}
-
-interface XenonInferenceModelMetadata {
-	contextWindow?: number;
-	maxTokens?: number;
-	vision?: boolean;
-	name?: string;
-}
-
-// The full Xenon Inference catalog is registered (minus raw/duplicate variants).
-// Xenon's /models endpoint publishes pricing only, so context/output limits and
-// modalities are read from OpenRouter's public catalog, used here purely as a
-// published spec sheet for the same upstream models — requests always go to
-// Xenon's own baseUrl. Entries below override those specs where the Xenon route
-// enforces a different limit (verified against the live API) or fill gaps for
-// models OpenRouter does not list or leaves incomplete.
-const XENON_INFERENCE_MODEL_METADATA: Record<string, XenonInferenceModelMetadata> = {
-	// These routes accept 200k, checked against the live API 2026-07-08. The
-	// other Claude routes take the full window their spec lists.
-	"anthropic/claude-sonnet-4": { contextWindow: 200000 },
-	"anthropic/claude-sonnet-4.5": { contextWindow: 200000 },
-	// Windows confirmed against the live API 2026-07-08 where they are SMALLER
-	// than the published spec — over-declaring breaks context tracking.
-	"meta-llama/llama-3.2-1b-instruct": { contextWindow: 60000 },
-	"meta-llama/llama-3.2-3b-instruct": { contextWindow: 80000 },
-	"minimax/minimax-m3": { contextWindow: 524288 },
-	"moonshotai/kimi-k2-0905": { contextWindow: 98304 },
-	"nvidia/nemotron-3-super-120b-a12b": { contextWindow: 262144, maxTokens: 4096 },
-	// Enforced window is LARGER than OpenRouter's listing.
-	"qwen/qwen3-30b-a3b-instruct-2507": { contextWindow: 262144 },
-	// OpenRouter has no max_completion_tokens for the rest of these.
-	"moonshotai/kimi-k2.5": { maxTokens: 65535 },
-	"minimax/minimax-m2.7": { maxTokens: 131072 },
-	// models.dev (moonshotai + openrouter) both list output = context for k2.6.
-	"moonshotai/kimi-k2.6": { maxTokens: 262144 },
-	"moonshotai/kimi-k3": { maxTokens: 1048576 },
-	"openai/gpt-4.1": { maxTokens: 32768 },
-	"openai/gpt-5-nano": { maxTokens: 128000 },
-	"openai/gpt-oss-20b": { maxTokens: 131072 },
-	"qwen/qwen3.5-397b-a17b": { maxTokens: 65536 },
-	"x-ai/grok-4.20": { maxTokens: 30000 },
-	"x-ai/grok-4.20-multi-agent": { maxTokens: 30000 },
-	"xiaomi/mimo-v2.5": { maxTokens: 131072 },
-	"z-ai/glm-5": { maxTokens: 131072 },
-};
-
-// Flagship models pinned above the long tail in the model picker, so the full
-// catalog doesn't flood /model. Everything else stays selectable via search.
-const XENON_INFERENCE_FEATURED_MODELS = new Set([
-	"anthropic/claude-fable-5",
-	"anthropic/claude-haiku-4.5",
-	"anthropic/claude-opus-4.6",
-	"anthropic/claude-opus-4.7",
-	"anthropic/claude-opus-4.8",
-	"anthropic/claude-sonnet-4.5",
-	"anthropic/claude-sonnet-4.6",
-	"anthropic/claude-sonnet-5",
-	"deepseek/deepseek-v3.2",
-	"deepseek/deepseek-v4-flash",
-	"deepseek/deepseek-v4-pro",
-	"minimax/minimax-m3",
-	"moonshotai/kimi-k2.7-code",
-	"moonshotai/kimi-k3",
-	"nvidia/nemotron-3-nano-30b-a3b",
-	"nvidia/nemotron-3-super-120b-a12b",
-	"openai/gpt-5.3-codex",
-	"openai/gpt-5.4",
-	"openai/gpt-5.4-mini",
-	"openai/gpt-5.4-pro",
-	"openai/gpt-5.5",
-	"qwen/qwen3-30b-a3b-instruct-2507",
-	"qwen/qwen3-coder-next",
-	"qwen/qwen3-max",
-	"qwen/qwen3-vl-235b-a22b-thinking",
-	"qwen/qwen3.8-max",
-	"x-ai/grok-4.20",
-	"x-ai/grok-4.20-multi-agent",
-	"z-ai/glm-5",
-	"z-ai/glm-5.1",
-	"z-ai/glm-5.2",
-]);
-
-// Xenon ids whose OpenRouter listing uses a different id. Empty today — Xenon
-// currently publishes ids that match OpenRouter's, but HF-style ids show up
-// whenever a new route is added, so the mapping stays.
-const XENON_INFERENCE_OPENROUTER_ALIASES: Record<string, string> = {};
-
-// Conservative fallbacks for catalog models with no OpenRouter match and no
-// override above: an under-declared window degrades gracefully, an
-// over-declared one breaks context tracking.
-const XENON_INFERENCE_DEFAULT_CONTEXT_WINDOW = 128000;
-const XENON_INFERENCE_DEFAULT_MAX_TOKENS = 8192;
-
-// Raw checkpoints and duplicate routes that would clutter the picker: BF16
-// exports, fine-tune outputs, zai-org/ and HF-cased twins of canonical ids.
-function isXenonInferenceRawVariant(modelId: string): boolean {
-	const id = modelId.toLowerCase();
-	if (id.endsWith("-bf16") || id.includes(":")) {
-		return true;
-	}
-	const vendor = modelId.split("/")[0] ?? "";
-	return vendor === "zai-org" || vendor !== vendor.toLowerCase();
-}
-
-function isXenonInferencePrivateModel(modelId: string): boolean {
-	const id = modelId.toLowerCase();
-	return id.startsWith("internal/") || id.startsWith("dev/");
-}
+const NVIDIA_NIM_BASE_URL = "https://integrate.api.nvidia.com/v1";
 
 const OPENAI_RESPONSES_NONE_REASONING_MODELS = new Set([
 	"gpt-5.1",
@@ -379,367 +256,7 @@ function getOptionalBoolean(value: unknown): boolean | undefined {
 	return typeof value === "boolean" ? value : undefined;
 }
 
-function readXenonCliConfig(): Record<string, unknown> {
-	try {
-		const parsed = JSON.parse(readFileSync(join(homedir(), ".xenon", "config.json"), "utf8"));
-		return isRecord(parsed) ? parsed : {};
-	} catch {
-		return {};
-	}
-}
 
-function getXenonInferenceConfigValue(
-	envName: "XENON_API_KEY" | "XENON_TEAM_ID",
-	config: Record<string, unknown>,
-	configKeys: readonly string[],
-): string | undefined {
-	const fromEnv = process.env[envName]?.trim();
-	if (fromEnv) {
-		return fromEnv;
-	}
-
-	for (const key of configKeys) {
-		const value = config[key];
-		if (typeof value === "string" && value.trim()) {
-			return value.trim();
-		}
-	}
-
-	return undefined;
-}
-
-function getXenonInferenceHeaders(apiKey: string | undefined, teamId: string | undefined): Record<string, string> | undefined {
-	const headers: Record<string, string> = {};
-	if (apiKey) {
-		headers.Authorization = `Bearer ${apiKey}`;
-	}
-	if (teamId) {
-		headers["X-Xenon-Team-ID"] = teamId;
-	}
-
-	return Object.keys(headers).length > 0 ? headers : undefined;
-}
-
-function getXenonInferenceCacheCosts(modelId: string, inputCost: number): { cacheRead: number; cacheWrite: number } {
-	return modelId.toLowerCase().startsWith("anthropic/")
-		? getAnthropicCacheCosts(inputCost, "5m")
-		: { cacheRead: 0, cacheWrite: 0 };
-}
-
-function getExistingXenonInferenceModels(): Model<"openai-completions">[] {
-	const models = Object.values(EXISTING_MODELS).find((providerModels) =>
-		Object.values(providerModels).some((model) => model.baseUrl === XENON_INFERENCE_BASE_URL),
-	) as Record<string, Model<"openai-completions">> | undefined;
-	if (!models) return [];
-	return Object.values(models)
-		.filter((model) => !isXenonInferenceRawVariant(model.id) && !isXenonInferencePrivateModel(model.id))
-		.map((model) => ({
-			...model,
-			provider: "xenon-inference",
-			input: [...model.input],
-			cost: {
-				...model.cost,
-				...getXenonInferenceCacheCosts(model.id, model.cost.input),
-			},
-			...(model.compat ? { compat: { ...model.compat } } : {}),
-			...(model.thinkingLevelMap ? { thinkingLevelMap: { ...model.thinkingLevelMap } } : {}),
-			...(model.headers ? { headers: { ...model.headers } } : {}),
-		}));
-}
-
-function mergeXenonInferenceModels(
-	snapshotModels: Model<"openai-completions">[],
-	catalogModels: Model<"openai-completions">[],
-): Model<"openai-completions">[] {
-	const models = new Map<string, Model<"openai-completions">>();
-	for (const model of snapshotModels) {
-		models.set(model.id.toLowerCase(), model);
-	}
-	for (const model of catalogModels) {
-		models.set(model.id.toLowerCase(), model);
-	}
-	return Array.from(models.values());
-}
-
-function refreshXenonInferenceAliasLimits(
-	snapshotModels: Model<"openai-completions">[],
-	catalogModels: Model<"openai-completions">[],
-): Model<"openai-completions">[] {
-	const liveModels = new Map(catalogModels.map((model) => [model.id.toLowerCase(), model]));
-	return snapshotModels.map((model) => {
-		const canonicalId = XENON_INFERENCE_OPENROUTER_ALIASES[model.id.toLowerCase()];
-		const canonical = canonicalId ? liveModels.get(canonicalId) : undefined;
-		if (!canonical) {
-			return model;
-		}
-		return {
-			...model,
-			contextWindow: canonical.contextWindow,
-			maxTokens: canonical.maxTokens,
-		};
-	});
-}
-
-function includesCatalogCapability(value: unknown, capabilities: readonly string[]): boolean {
-	if (!Array.isArray(value)) {
-		return false;
-	}
-
-	return value.some((item) => {
-		if (typeof item !== "string") {
-			return false;
-		}
-		const normalized = item.toLowerCase();
-		return capabilities.some((capability) => normalized.includes(capability));
-	});
-}
-
-function getXenonInferenceDisplayName(modelId: string): string {
-	const rawName = modelId.split("/").at(-1) ?? modelId;
-	return rawName
-		.split(/[-_]+/)
-		.filter((part) => part.length > 0)
-		.map((part) => {
-			if (part === part.toUpperCase() || /\d/.test(part)) return part.toUpperCase();
-			if (part.length <= 3) return part.toUpperCase();
-			return part.charAt(0).toUpperCase() + part.slice(1);
-		})
-		.join(" ");
-}
-
-function getXenonInferenceCatalogReasoning(item: Record<string, unknown>): boolean | undefined {
-	const metadata = isRecord(item.metadata) ? item.metadata : {};
-	const direct =
-		getOptionalBoolean(item.reasoning) ??
-		getOptionalBoolean(item.supports_reasoning) ??
-		getOptionalBoolean(item.supportsReasoning) ??
-		getOptionalBoolean(metadata.reasoning) ??
-		getOptionalBoolean(metadata.supports_reasoning) ??
-		getOptionalBoolean(metadata.supportsReasoning);
-	if (direct !== undefined) {
-		return direct;
-	}
-
-	return includesCatalogCapability(item.supported_parameters, ["reasoning", "thinking"]) ||
-		includesCatalogCapability(item.capabilities, ["reasoning", "thinking"]) ||
-		includesCatalogCapability(item.tags, ["reasoning", "thinking"]) ||
-		includesCatalogCapability(metadata.supported_parameters, ["reasoning", "thinking"]) ||
-		includesCatalogCapability(metadata.capabilities, ["reasoning", "thinking"]) ||
-		includesCatalogCapability(metadata.tags, ["reasoning", "thinking"])
-		? true
-		: undefined;
-}
-
-function isXenonInferenceReasoningModel(modelId: string, catalogReasoning?: boolean): boolean {
-	if (catalogReasoning !== undefined) {
-		return catalogReasoning;
-	}
-
-	const id = modelId.toLowerCase();
-	return (
-		id.includes("thinking") ||
-		id.includes("deepseek-v4") ||
-		id.startsWith("minimax/minimax-m") ||
-		id.startsWith("moonshotai/kimi") ||
-		id.startsWith("x-ai/grok-4") ||
-		id.startsWith("z-ai/glm-") ||
-		(id.startsWith("openai/gpt-5") && !id.includes("-chat")) ||
-		/^anthropic\/claude-(?:fable-5|opus-4|sonnet-(?:4|5))/.test(id)
-	);
-}
-
-function getXenonInferenceCompat(modelId: string): OpenAICompletionsCompat {
-	const id = modelId.toLowerCase();
-	if (id.includes("deepseek-v4")) {
-		return {
-			...XENON_INFERENCE_COMPAT,
-			...DEEPSEEK_V4_COMPAT,
-		};
-	}
-	if (id.startsWith("z-ai/glm-")) {
-		return {
-			...XENON_INFERENCE_COMPAT,
-			...ZAI_THINKING_COMPAT,
-		};
-	}
-
-	return XENON_INFERENCE_COMPAT;
-}
-
-function parseXenonInferenceCatalog(data: unknown): XenonInferenceCatalogEntry[] {
-	if (!isRecord(data) || !Array.isArray(data.data)) {
-		return [];
-	}
-
-	return data.data.flatMap((item): XenonInferenceCatalogEntry[] => {
-		if (!isRecord(item) || typeof item.id !== "string") {
-			return [];
-		}
-
-		const pricing = isRecord(item.pricing) ? item.pricing : {};
-		const input = getOptionalNumber(pricing.input_usd_per_mtok);
-		const output = getOptionalNumber(pricing.output_usd_per_mtok);
-		if (input === undefined || output === undefined) {
-			return [];
-		}
-
-		const limit = isRecord(item.limit) ? item.limit : {};
-		return [
-			{
-				id: item.id,
-				input,
-				output,
-				contextWindow: getOptionalNumber(item.context_window ?? item.contextWindow ?? limit.context),
-				maxTokens: getOptionalNumber(item.max_tokens ?? item.maxTokens ?? limit.output),
-				reasoning: getXenonInferenceCatalogReasoning(item),
-			},
-		];
-	});
-}
-
-interface XenonInferenceOpenRouterMetadata {
-	contextWindow?: number;
-	maxTokens?: number;
-	vision: boolean;
-	reasoning: boolean;
-	thinkingLevelMap?: Model<"openai-completions">["thinkingLevelMap"];
-	supportsReasoningEffort?: boolean;
-}
-
-function buildXenonInferenceOpenRouterIndex(catalog: unknown[]): Map<string, XenonInferenceOpenRouterMetadata> {
-	const index = new Map<string, XenonInferenceOpenRouterMetadata>();
-	for (const item of catalog) {
-		if (!isRecord(item) || typeof item.id !== "string") {
-			continue;
-		}
-		const topProvider = isRecord(item.top_provider) ? item.top_provider : {};
-		const architecture = isRecord(item.architecture) ? item.architecture : {};
-		const modalities = Array.isArray(architecture.input_modalities) ? architecture.input_modalities : [];
-		const supportedParameters = Array.isArray(item.supported_parameters) ? item.supported_parameters : [];
-		const reasoningCapabilities = getOpenRouterReasoningCapabilities(item);
-		index.set(item.id.toLowerCase(), {
-			contextWindow: getOptionalNumber(item.context_length) ?? getOptionalNumber(topProvider.context_length),
-			maxTokens: getOptionalNumber(topProvider.max_completion_tokens),
-			vision: modalities.includes("image"),
-			// Same signal the OpenRouter provider path uses; the top-level
-			// `reasoning` object over-reports (e.g. qwen3-max carries one despite
-			// not accepting reasoning params).
-			reasoning: supportedParameters.includes("reasoning"),
-			...(reasoningCapabilities?.thinkingLevelMap
-				? { thinkingLevelMap: reasoningCapabilities.thinkingLevelMap }
-				: {}),
-			...(reasoningCapabilities?.supportsReasoningEffort === false
-				? { supportsReasoningEffort: false }
-				: {}),
-		});
-	}
-	return index;
-}
-
-function getXenonInferenceOpenRouterMetadata(
-	index: Map<string, XenonInferenceOpenRouterMetadata>,
-	modelId: string,
-): XenonInferenceOpenRouterMetadata | undefined {
-	const id = modelId.toLowerCase();
-	return index.get(XENON_INFERENCE_OPENROUTER_ALIASES[id] ?? id);
-}
-
-async function fetchXenonInferenceModels(): Promise<Model<"openai-completions">[]> {
-	const xenonConfig = readXenonCliConfig();
-	const apiKey = getXenonInferenceConfigValue("XENON_API_KEY", xenonConfig, ["api_key", "apiKey"]);
-	const teamId = getXenonInferenceConfigValue("XENON_TEAM_ID", xenonConfig, ["team_id", "teamId", "teamID"]);
-	let catalog: XenonInferenceCatalogEntry[] = [];
-
-	try {
-		console.log("Fetching models from Xenon Inference API...");
-		const response = await fetch(`${XENON_INFERENCE_BASE_URL}/models`, {
-			headers: getXenonInferenceHeaders(apiKey, teamId),
-		});
-		catalog = parseXenonInferenceCatalog(await response.json());
-	} catch (error) {
-		console.error("Failed to fetch Xenon Inference models:", error);
-	}
-
-	let openRouterIndex = new Map<string, XenonInferenceOpenRouterMetadata>();
-	try {
-		openRouterIndex = buildXenonInferenceOpenRouterIndex(await fetchOpenRouterCatalog());
-	} catch (error) {
-		console.error("Failed to fetch OpenRouter catalog for Xenon Inference metadata:", error);
-	}
-	if (openRouterIndex.size === 0) {
-		// Without OpenRouter metadata every model would regress to the defaults;
-		// keep the previous snapshot instead.
-		console.error("OpenRouter catalog unavailable; keeping snapshot Xenon Inference models");
-		return getExistingXenonInferenceModels();
-	}
-
-	const catalogModels = catalog
-		.filter((entry) => !isXenonInferenceRawVariant(entry.id) && !isXenonInferencePrivateModel(entry.id))
-		.map((entry) =>
-			createXenonInferenceModel(
-				entry,
-				XENON_INFERENCE_MODEL_METADATA[entry.id.toLowerCase()],
-				getXenonInferenceOpenRouterMetadata(openRouterIndex, entry.id),
-			),
-		);
-	let snapshotModels = getExistingXenonInferenceModels();
-	if (catalog.length > 0) {
-		const liveIds = new Set(catalogModels.map((model) => model.id.toLowerCase()));
-		snapshotModels = snapshotModels.filter((model) => liveIds.has(model.id.toLowerCase()));
-	}
-	snapshotModels = refreshXenonInferenceAliasLimits(snapshotModels, catalogModels);
-	const models = mergeXenonInferenceModels(snapshotModels, catalogModels);
-	console.log(`Loaded ${models.length} Xenon Inference models (${catalogModels.length} from the live catalog)`);
-	return models;
-}
-
-function createXenonInferenceModel(
-	entry: XenonInferenceCatalogEntry,
-	override: XenonInferenceModelMetadata | undefined,
-	openRouter: XenonInferenceOpenRouterMetadata | undefined,
-): Model<"openai-completions"> {
-	const vision = override?.vision ?? openRouter?.vision ?? false;
-	const cacheCosts = getXenonInferenceCacheCosts(entry.id, entry.input);
-	const contextWindow =
-		entry.contextWindow ??
-		override?.contextWindow ??
-		openRouter?.contextWindow ??
-		XENON_INFERENCE_DEFAULT_CONTEXT_WINDOW;
-	// Sources are independent, so an OpenRouter output cap can exceed a
-	// gateway-measured window override; clamp to keep the pair coherent.
-	const maxTokens = Math.min(
-		entry.maxTokens ?? override?.maxTokens ?? openRouter?.maxTokens ?? XENON_INFERENCE_DEFAULT_MAX_TOKENS,
-		contextWindow,
-	);
-	const compat = getXenonInferenceCompat(entry.id);
-	return {
-		id: entry.id,
-		...(XENON_INFERENCE_FEATURED_MODELS.has(entry.id.toLowerCase()) ? { featured: true } : {}),
-		name: override?.name ?? getXenonInferenceDisplayName(entry.id),
-		api: "openai-completions",
-		provider: "xenon-inference",
-		baseUrl: XENON_INFERENCE_BASE_URL,
-		reasoning: isXenonInferenceReasoningModel(entry.id, entry.reasoning ?? openRouter?.reasoning),
-		...(openRouter?.thinkingLevelMap ? { thinkingLevelMap: openRouter.thinkingLevelMap } : {}),
-		input: vision ? ["text", "image"] : ["text"],
-		cost: {
-			input: entry.input,
-			output: entry.output,
-			...cacheCosts,
-		},
-		contextWindow,
-		maxTokens,
-		compat: {
-			...compat,
-			...(openRouter?.supportsReasoningEffort === false
-				? {
-						supportsReasoningEffort: false,
-						...(!compat.thinkingFormat ? { thinkingFormat: "openrouter" as const } : {}),
-					}
-				: {}),
-		},
-	};
-}
 
 let openRouterCatalogPromise: Promise<any[]> | undefined;
 
@@ -2345,8 +1862,127 @@ async function generateModels() {
 	];
 	allModels.push(...vertexModels);
 
-	const xenonInferenceModels = await fetchXenonInferenceModels();
-	allModels.push(...xenonInferenceModels);
+	const NVIDIA_NIM_BASE_URL = "https://integrate.api.nvidia.com/v1";
+	const nvidiaNimModels: Model<"openai-completions">[] = [
+		{
+			id: "moonshotai/kimi-k3",
+			name: "Kimi K3 (NVIDIA NIM)",
+			api: "openai-completions",
+			provider: "nvidia",
+			baseUrl: NVIDIA_NIM_BASE_URL,
+			reasoning: true,
+			input: ["text", "image"],
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+			contextWindow: 1048576,
+			maxTokens: 16384,
+			featured: true,
+		},
+		{
+			id: "meta/llama-3.3-70b-instruct",
+			name: "Llama 3.3 70B Instruct (NVIDIA NIM)",
+			api: "openai-completions",
+			provider: "nvidia",
+			baseUrl: NVIDIA_NIM_BASE_URL,
+			reasoning: false,
+			input: ["text"],
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+			contextWindow: 128000,
+			maxTokens: 4096,
+			featured: true,
+		},
+		{
+			id: "deepseek-ai/deepseek-r1",
+			name: "DeepSeek R1 (NVIDIA NIM)",
+			api: "openai-completions",
+			provider: "nvidia",
+			baseUrl: NVIDIA_NIM_BASE_URL,
+			reasoning: true,
+			input: ["text"],
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+			contextWindow: 128000,
+			maxTokens: 8192,
+			featured: true,
+		},
+		{
+			id: "nvidia/llama-3.1-nemotron-70b-instruct",
+			name: "Llama 3.1 Nemotron 70B Instruct (NVIDIA NIM)",
+			api: "openai-completions",
+			provider: "nvidia",
+			baseUrl: NVIDIA_NIM_BASE_URL,
+			reasoning: false,
+			input: ["text"],
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+			contextWindow: 128000,
+			maxTokens: 4096,
+		},
+		{
+			id: "meta/llama-3.1-405b-instruct",
+			name: "Llama 3.1 405B Instruct (NVIDIA NIM)",
+			api: "openai-completions",
+			provider: "nvidia",
+			baseUrl: NVIDIA_NIM_BASE_URL,
+			reasoning: false,
+			input: ["text"],
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+			contextWindow: 128000,
+			maxTokens: 4096,
+		},
+		{
+			id: "meta/llama-3.1-8b-instruct",
+			name: "Llama 3.1 8B Instruct (NVIDIA NIM)",
+			api: "openai-completions",
+			provider: "nvidia",
+			baseUrl: NVIDIA_NIM_BASE_URL,
+			reasoning: false,
+			input: ["text"],
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+			contextWindow: 128000,
+			maxTokens: 4096,
+		},
+		{
+			id: "mistralai/mistral-large-2-instruct",
+			name: "Mistral Large 2 Instruct (NVIDIA NIM)",
+			api: "openai-completions",
+			provider: "nvidia",
+			baseUrl: NVIDIA_NIM_BASE_URL,
+			reasoning: false,
+			input: ["text"],
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+			contextWindow: 128000,
+			maxTokens: 4096,
+		},
+		{
+			id: "nvidia/nemotron-4-340b-instruct",
+			name: "Nemotron 4 340B Instruct (NVIDIA NIM)",
+			api: "openai-completions",
+			provider: "nvidia",
+			baseUrl: NVIDIA_NIM_BASE_URL,
+			reasoning: false,
+			input: ["text"],
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+			contextWindow: 128000,
+			maxTokens: 4096,
+		},
+		{
+			id: "qwen/qwen2.5-72b-instruct",
+			name: "Qwen 2.5 72B Instruct (NVIDIA NIM)",
+			api: "openai-completions",
+			provider: "nvidia",
+			baseUrl: NVIDIA_NIM_BASE_URL,
+			reasoning: false,
+			input: ["text"],
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+			contextWindow: 128000,
+			maxTokens: 4096,
+		},
+	];
+	allModels.push(...nvidiaNimModels);
+
+	const nvidiaNimAliasModels: Model<"openai-completions">[] = nvidiaNimModels.map((m) => ({
+		...m,
+		provider: "nvidia-nim",
+	}));
+	allModels.push(...nvidiaNimAliasModels);
 
 	const azureOpenAiModels: Model<Api>[] = allModels
 		.filter((model) => model.provider === "openai" && model.api === "openai-responses")

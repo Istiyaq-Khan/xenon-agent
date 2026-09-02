@@ -1,7 +1,6 @@
 import { win32 } from "node:path";
 import { getOAuthProviders } from "@earendil-works/pi-ai/oauth";
 import {
-	type Component,
 	Container,
 	type Focusable,
 	getCapabilities,
@@ -9,28 +8,13 @@ import {
 	Spacer,
 	Text,
 	type TUI,
-	truncateToWidth,
-	visibleWidth,
 } from "@earendil-works/pi-tui";
 import { execFile } from "child_process";
-import { XENON_BUTTERFLY_LOGO } from "../../../themes/xenon-logo.js";
 import { copyToClipboard } from "../../../utils/clipboard.js";
 import { theme } from "../theme/theme.js";
 import { formatKeyText, keyHint } from "./keybinding-hints.js";
 import { MenuPanel, MenuSearchInput } from "./menu-panel.js";
 import { shouldTreatAsBack } from "./modal-back.js";
-
-const XENON_INFERENCE_PROVIDER_ID = "xenon-inference";
-const XENON_LOGO_LINES = XENON_BUTTERFLY_LOGO.split("\n");
-const XENON_LOGO_WIDTH = XENON_LOGO_LINES.reduce((max, line) => Math.max(max, visibleWidth(line)), 0);
-
-function centeredLine(text: string, width: number): string {
-	const safeWidth = Math.max(1, width);
-	const content = truncateToWidth(text, safeWidth, "");
-	const padding = Math.max(0, safeWidth - visibleWidth(content));
-	const left = Math.floor(padding / 2);
-	return " ".repeat(left) + content + " ".repeat(padding - left);
-}
 
 function isTextEntryKeybinding(key: string): boolean {
 	const parts = key.toLowerCase().split("+");
@@ -42,30 +26,6 @@ function isPrintableInput(data: string): boolean {
 	return data.length === 1 && data >= " " && data !== "\x7f";
 }
 
-class XenonLoginHeader implements Component {
-	invalidate(): void {
-		// Header render is derived from the current theme.
-	}
-
-	render(width: number): string[] {
-		const safeWidth = Math.max(1, width);
-		const logoWidth = Math.min(XENON_LOGO_WIDTH, safeWidth);
-		const logoLines = XENON_LOGO_LINES.map((line) => {
-			const paddedLogoLine = line + " ".repeat(Math.max(0, XENON_LOGO_WIDTH - visibleWidth(line)));
-			return centeredLine(theme.fg("text", truncateToWidth(paddedLogoLine, logoWidth, "")), safeWidth);
-		});
-		return [
-			...logoLines,
-			centeredLine("", safeWidth),
-			centeredLine(theme.bold(theme.fg("text", "Login to Xenon Inference")), safeWidth),
-			centeredLine(
-				theme.fg("muted", "Connect your Xenon Intellect account to enable Xenon Inference models."),
-				safeWidth,
-			),
-		];
-	}
-}
-
 /**
  * Login dialog component - replaces editor during OAuth login flow
  */
@@ -73,7 +33,6 @@ export class LoginDialogComponent extends Container implements Focusable {
 	private contentContainer: Container;
 	private input: MenuSearchInput;
 	private tui: TUI;
-	private readonly isXenonInference: boolean;
 	private abortController = new AbortController();
 	private inputResolver?: (value: string) => void;
 	private inputRejecter?: (error: Error) => void;
@@ -108,12 +67,11 @@ export class LoginDialogComponent extends Container implements Focusable {
 
 		const providerInfo = getOAuthProviders().find((p) => p.id === providerId);
 		const providerName = providerNameOverride || providerInfo?.name || providerId;
-		this.isXenonInference = providerId === XENON_INFERENCE_PROVIDER_ID;
 		const title = titleOverride ?? `Login to ${providerName}`;
 
 		const panel = new MenuPanel({
-			title: this.isXenonInference ? "" : title,
-			subtitle: this.isXenonInference ? undefined : "Complete this step to continue setup.",
+			title,
+			subtitle: "Complete this step to continue setup.",
 		});
 		this.addChild(panel);
 
@@ -304,11 +262,6 @@ export class LoginDialogComponent extends Container implements Focusable {
 		this.authActions = undefined;
 		// The cleared panel no longer shows the paste field.
 		this.inputVisible = false;
-		if (this.isXenonInference) {
-			this.contentContainer.addChild(new XenonLoginHeader());
-			this.contentContainer.addChild(new Spacer(1));
-			return;
-		}
 		this.contentContainer.addChild(new Spacer(1));
 	}
 

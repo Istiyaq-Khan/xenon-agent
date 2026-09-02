@@ -5,20 +5,6 @@ import { getAuthPath, getDocsPath } from "../../config.js";
 import type { ModelRegistry } from "../../core/model-registry.js";
 import { BUILT_IN_PROVIDER_DISPLAY_NAMES } from "../../core/provider-display-names.js";
 import { SERPER_CREDENTIAL_ID, SERPER_CREDENTIAL_NAME } from "../../core/websearch-credential.js";
-import {
-	checkXenonAgentTracesAccess,
-	checkXenonInferenceAccess,
-	fetchXenonTeams,
-	loadXenonCliConfig,
-	loginXenonAgentTraces,
-	loginXenonInference,
-	resolveXenonAgentTracesBaseUrl,
-	XENON_AGENT_TRACES_PROVIDER_ID,
-	XENON_AGENT_TRACES_PROVIDER_NAME,
-	XENON_INFERENCE_PROVIDER_ID,
-	XENON_INFERENCE_PROVIDER_NAME,
-	type XenonTeam,
-} from "../../core/xenon-inference-auth.js";
 import { showFullPaneOverlay } from "./components/centered-overlay.js";
 import { ExtensionSelectorComponent } from "./components/extension-selector.js";
 import { LoginDialogComponent } from "./components/login-dialog.js";
@@ -28,8 +14,10 @@ import {
 	compareAuthSelectorProviders,
 	OAuthSelectorComponent,
 } from "./components/oauth-selector.js";
-import { XenonTeamSelectorComponent } from "./components/xenon-team-selector.js";
 import { theme } from "./theme/theme.js";
+
+export const XENON_AGENT_TRACES_PROVIDER_ID = "xenon-agent-traces";
+export const XENON_AGENT_TRACES_PROVIDER_NAME = "Xenon Agent Traces";
 
 export type AuthenticationResult =
 	| {
@@ -175,9 +163,6 @@ export class ProviderAuthFlows {
 		if (providerOption.authType === "oauth") {
 			return this.showLoginDialog(providerOption.id, providerOption.name, kind);
 		}
-		if (providerOption.id === XENON_INFERENCE_PROVIDER_ID) {
-			return this.runXenonInferenceLogin();
-		}
 		if (providerOption.id === BEDROCK_PROVIDER_ID) {
 			return this.showBedrockSetupDialog(providerOption.id, providerOption.name);
 		}
@@ -293,17 +278,6 @@ export class ProviderAuthFlows {
 			});
 		}
 
-		if (!options.some((option) => option.id === XENON_INFERENCE_PROVIDER_ID)) {
-			const xenonInferenceStatus = authStorage.getAuthStatus(XENON_INFERENCE_PROVIDER_ID);
-			if (xenonInferenceStatus.source === "xenon_cli") {
-				options.push({
-					id: XENON_INFERENCE_PROVIDER_ID,
-					name: XENON_INFERENCE_PROVIDER_NAME,
-					authType: "api_key",
-				});
-			}
-		}
-
 		return options.sort((a, b) => a.name.localeCompare(b.name));
 	}
 
@@ -381,351 +355,6 @@ export class ProviderAuthFlows {
 				return { status: "failed" };
 			}
 			return { status: "cancelled" };
-		}
-	}
-
-	private showXenonTeamSelector(
-		teams: XenonTeam[],
-		currentTeamId: string | undefined,
-	): Promise<XenonTeam | null | undefined> {
-		return new Promise((resolve) => {
-			let handle: OverlayHandle | undefined;
-			const close = () => {
-				handle?.hide();
-				this.host.ui.requestRender();
-			};
-			const selector = new XenonTeamSelectorComponent(
-				teams,
-				currentTeamId,
-				(team) => {
-					close();
-					resolve(team);
-				},
-				() => {
-					close();
-					resolve(undefined);
-				},
-				{ getRows: () => this.host.ui.terminal.rows },
-			);
-			handle = showFullPaneOverlay(this.host.ui, selector, 78);
-		});
-	}
-
-	private getXenonInferenceDefaultTeamStatus(): string {
-		const configPath = this.host.modelRegistry.authStorage.getXenonCliConfigPath();
-		if (configPath) {
-			let config: ReturnType<typeof loadXenonCliConfig>;
-			try {
-				config = loadXenonCliConfig(configPath);
-			} catch {
-				return "Using personal account.";
-			}
-			if (config.teamIdFromEnv) {
-				return "Using team from XENON_TEAM_ID.";
-			}
-			if (config.teamName) {
-				return `Using team "${config.teamName}".`;
-			}
-			if (config.teamId) {
-				return "Using Xenon CLI team.";
-			}
-		}
-		const storedTeam = this.host.modelRegistry.authStorage.getXenonInferenceTeamSelection();
-		if (storedTeam) {
-			return `Using team "${storedTeam.name}".`;
-		}
-		if (storedTeam === null) {
-			return "Using personal account.";
-		}
-		return "Using personal account.";
-	}
-
-	private async selectXenonInferenceTeam(apiKey: string, dialog: LoginDialogComponent): Promise<string | undefined> {
-		try {
-			const config = loadXenonCliConfig(this.host.modelRegistry.authStorage.getXenonCliConfigPath());
-			if (config.teamIdFromEnv) {
-				this.host.modelRegistry.authStorage.reload();
-				return "Using team from XENON_TEAM_ID.";
-			}
-
-			dialog.showProgress("Loading Xenon teams...");
-			const teams = await fetchXenonTeams(apiKey, config.baseUrl, { signal: dialog.signal });
-			if (dialog.signal.aborted) {
-				return this.getXenonInferenceDefaultTeamStatus();
-			}
-			if (teams.length === 0) {
-				this.host.modelRegistry.authStorage.setXenonInferenceTeamSelection(null);
-				return "Using personal account.";
-			}
-
-			const storedTeam = this.host.modelRegistry.authStorage.getXenonInferenceTeamSelection();
-			const currentTeamId = storedTeam === null ? undefined : (storedTeam?.teamId ?? config.teamId);
-			const selectedTeam = await this.showXenonTeamSelector(teams, currentTeamId);
-			if (selectedTeam !== undefined) {
-				this.host.modelRegistry.authStorage.setXenonInferenceTeamSelection(selectedTeam);
-			}
-			return selectedTeam
-				? `Using team "${selectedTeam.name}".`
-				: selectedTeam === null
-					? "Using personal account."
-					: this.getXenonInferenceDefaultTeamStatus();
-		} catch {
-			this.host.modelRegistry.authStorage.reload();
-			return this.getXenonInferenceDefaultTeamStatus();
-		}
-	}
-
-	private async completeXenonInferenceLogin(
-		apiKey: string,
-		dialog: LoginDialogComponent,
-		closeDialog: () => void,
-	): Promise<AuthenticationResult> {
-		this.host.modelRegistry.authStorage.setXenonInferenceApiKey(apiKey);
-		const teamStatus = await this.selectXenonInferenceTeam(apiKey, dialog);
-
-		closeDialog();
-		return await this.completeProviderAuthentication(
-			XENON_INFERENCE_PROVIDER_ID,
-			XENON_INFERENCE_PROVIDER_NAME,
-			"api_key",
-			teamStatus,
-			"provider",
-			this.host.modelRegistry.authStorage.getXenonCliConfigPath() ?? getAuthPath(),
-		);
-	}
-
-	private async completeXenonAgentTracesLogin(apiKey: string, closeDialog: () => void): Promise<AuthenticationResult> {
-		this.host.modelRegistry.authStorage.set(XENON_AGENT_TRACES_PROVIDER_ID, {
-			type: "api_key",
-			key: apiKey,
-		});
-
-		closeDialog();
-		return await this.completeProviderAuthentication(
-			XENON_AGENT_TRACES_PROVIDER_ID,
-			XENON_AGENT_TRACES_PROVIDER_NAME,
-			"api_key",
-		);
-	}
-
-	async runXenonInferenceLogin(): Promise<AuthenticationResult> {
-		const dialog = new LoginDialogComponent(
-			this.host.ui,
-			XENON_INFERENCE_PROVIDER_ID,
-			(_success, _message) => {},
-			XENON_INFERENCE_PROVIDER_NAME,
-		);
-
-		const handle = showFullPaneOverlay(this.host.ui, dialog, {
-			maxContentWidth: 88,
-			suspendFullscreenMouse: true,
-		});
-
-		const closeDialog = () => {
-			handle.hide();
-			this.host.ui.requestRender();
-		};
-
-		// The browser challenge gets its own controller so a manually pasted key
-		// can stop the polling without tearing down the dialog.
-		const browserAbort = new AbortController();
-		const onDialogAbort = () => browserAbort.abort();
-		dialog.signal.addEventListener("abort", onDialogAbort, { once: true });
-
-		let manualInputArmed = false;
-		let resolveManualKey: (entry: { apiKey: string; source: "manual" }) => void = () => {};
-		const manualKeyEntry = new Promise<{ apiKey: string; source: "manual" }>((resolve) => {
-			resolveManualKey = resolve;
-		});
-		const armManualInput = (prompt: string): void => {
-			manualInputArmed = true;
-			void (async () => {
-				let value = (await dialog.showManualInput(prompt)).trim();
-				while (!value) {
-					value = (await dialog.waitForInput()).trim();
-				}
-				resolveManualKey({ apiKey: value, source: "manual" });
-			})().catch(() => {
-				// Cancellation surfaces through the dialog signal.
-			});
-		};
-
-		try {
-			const browserLogin = loginXenonInference(
-				{
-					onAuth: (info) => {
-						dialog.showAuth(info.url, info.instructions);
-						armManualInput("Complete the sign-in in your browser, or paste an API key below:");
-					},
-					onProgress: (message) => {
-						dialog.showProgress(message);
-					},
-					signal: browserAbort.signal,
-				},
-				{
-					configPath: this.host.modelRegistry.authStorage.getXenonCliConfigPath(),
-				},
-			);
-			// When the browser challenge cannot start or breaks down, keep the dialog
-			// open and fall back to plain API key entry instead of failing outright.
-			const browserLoginOrFallback = browserLogin.catch((error: unknown) => {
-				if (browserAbort.signal.aborted) {
-					throw error;
-				}
-				const errorMsg = error instanceof Error ? error.message : String(error);
-				dialog.showProgress(`Browser sign-in unavailable (${errorMsg}).`);
-				if (!manualInputArmed) {
-					armManualInput("Paste a Xenon API key below:");
-				}
-				return manualKeyEntry;
-			});
-			// Once the browser flow has settled into manual fallback, nothing above
-			// rejects on cancel anymore, so the dialog signal must end the race too.
-			const dialogCancelled = new Promise<never>((_, reject) => {
-				dialog.signal.addEventListener("abort", () => reject(new Error("Login cancelled")), { once: true });
-			});
-			// Promise.race observes the rejections below, but keep dedicated handlers
-			// so neither an aborted browser flow nor a cancelled dialog can surface
-			// as an unhandled rejection.
-			browserLoginOrFallback.catch(() => {});
-			dialogCancelled.catch(() => {});
-
-			const result = await Promise.race([browserLoginOrFallback, manualKeyEntry, dialogCancelled]);
-			if (dialog.signal.aborted) {
-				closeDialog();
-				return { status: "cancelled" };
-			}
-
-			if (result.source === "manual") {
-				browserAbort.abort();
-				dialog.showProgress("Checking Xenon Inference access...");
-				const config = loadXenonCliConfig(this.host.modelRegistry.authStorage.getXenonCliConfigPath());
-				const access = await checkXenonInferenceAccess(result.apiKey, config.baseUrl, { signal: dialog.signal });
-				if (dialog.signal.aborted) {
-					closeDialog();
-					return { status: "cancelled" };
-				}
-				if (!access.ok) {
-					const status = access.status === undefined ? "" : `HTTP ${access.status}: `;
-					throw new Error(`Xenon API key does not have Xenon Inference access (${status}${access.message})`);
-				}
-			}
-
-			return await this.completeXenonInferenceLogin(result.apiKey, dialog, closeDialog);
-		} catch (error: unknown) {
-			closeDialog();
-			const errorMsg = error instanceof Error ? error.message : String(error);
-			if (!dialog.signal.aborted && errorMsg !== "Login cancelled") {
-				this.host.showError(`Failed to login to ${XENON_INFERENCE_PROVIDER_NAME}: ${errorMsg}`);
-				return { status: "failed" };
-			}
-			return { status: "cancelled" };
-		} finally {
-			dialog.signal.removeEventListener("abort", onDialogAbort);
-		}
-	}
-
-	async runXenonAgentTracesLogin(): Promise<AuthenticationResult> {
-		const dialog = new LoginDialogComponent(
-			this.host.ui,
-			XENON_AGENT_TRACES_PROVIDER_ID,
-			(_success, _message) => {},
-			XENON_AGENT_TRACES_PROVIDER_NAME,
-		);
-
-		const handle = showFullPaneOverlay(this.host.ui, dialog, {
-			maxContentWidth: 88,
-			suspendFullscreenMouse: true,
-		});
-
-		const closeDialog = () => {
-			handle.hide();
-			this.host.ui.requestRender();
-		};
-
-		const browserAbort = new AbortController();
-		const onDialogAbort = () => browserAbort.abort();
-		dialog.signal.addEventListener("abort", onDialogAbort, { once: true });
-
-		let manualInputArmed = false;
-		let resolveManualKey: (entry: { apiKey: string; source: "manual" }) => void = () => {};
-		const manualKeyEntry = new Promise<{ apiKey: string; source: "manual" }>((resolve) => {
-			resolveManualKey = resolve;
-		});
-		const armManualInput = (prompt: string): void => {
-			manualInputArmed = true;
-			void (async () => {
-				let value = (await dialog.showManualInput(prompt)).trim();
-				while (!value) {
-					value = (await dialog.waitForInput()).trim();
-				}
-				resolveManualKey({ apiKey: value, source: "manual" });
-			})().catch(() => {
-				// Cancellation surfaces through the dialog signal.
-			});
-		};
-
-		try {
-			const browserLogin = loginXenonAgentTraces({
-				onAuth: (info) => {
-					dialog.showAuth(info.url, info.instructions);
-					armManualInput("Complete the sign-in in your browser, or paste a Xenon API key below:");
-				},
-				onProgress: (message) => {
-					dialog.showProgress(message);
-				},
-				signal: browserAbort.signal,
-			});
-			const browserLoginOrFallback = browserLogin.catch((error: unknown) => {
-				if (browserAbort.signal.aborted) {
-					throw error;
-				}
-				const errorMsg = error instanceof Error ? error.message : String(error);
-				dialog.showProgress(`Browser sign-in unavailable (${errorMsg}).`);
-				if (!manualInputArmed) {
-					armManualInput("Paste a Xenon API key below:");
-				}
-				return manualKeyEntry;
-			});
-			const dialogCancelled = new Promise<never>((_, reject) => {
-				dialog.signal.addEventListener("abort", () => reject(new Error("Login cancelled")), { once: true });
-			});
-			browserLoginOrFallback.catch(() => {});
-			dialogCancelled.catch(() => {});
-
-			const result = await Promise.race([browserLoginOrFallback, manualKeyEntry, dialogCancelled]);
-			if (dialog.signal.aborted) {
-				closeDialog();
-				return { status: "cancelled" };
-			}
-
-			if (result.source === "manual") {
-				browserAbort.abort();
-				dialog.showProgress("Checking Xenon Agent trace access...");
-				const access = await checkXenonAgentTracesAccess(result.apiKey, resolveXenonAgentTracesBaseUrl(), {
-					signal: dialog.signal,
-				});
-				if (dialog.signal.aborted) {
-					closeDialog();
-					return { status: "cancelled" };
-				}
-				if (!access.ok) {
-					const status = access.status === undefined ? "" : `HTTP ${access.status}: `;
-					throw new Error(`Xenon API key does not have Xenon Agent trace access (${status}${access.message})`);
-				}
-			}
-
-			return await this.completeXenonAgentTracesLogin(result.apiKey, closeDialog);
-		} catch (error: unknown) {
-			closeDialog();
-			const errorMsg = error instanceof Error ? error.message : String(error);
-			if (!dialog.signal.aborted && errorMsg !== "Login cancelled") {
-				this.host.showError(`Failed to login to ${XENON_AGENT_TRACES_PROVIDER_NAME}: ${errorMsg}`);
-				return { status: "failed" };
-			}
-			return { status: "cancelled" };
-		} finally {
-			dialog.signal.removeEventListener("abort", onDialogAbort);
 		}
 	}
 
@@ -873,5 +502,9 @@ export class ProviderAuthFlows {
 			}
 			return { status: "cancelled" };
 		}
+	}
+
+	async runXenonAgentTracesLogin(): Promise<AuthenticationResult> {
+		return this.showApiKeyLoginDialog(XENON_AGENT_TRACES_PROVIDER_ID, XENON_AGENT_TRACES_PROVIDER_NAME, "service");
 	}
 }

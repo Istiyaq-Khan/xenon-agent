@@ -477,8 +477,6 @@ export function telemetryAuthCategory(
 			return "runtime_api_key";
 		case "environment":
 			return "environment";
-		case "xenon_cli":
-			return "xenon_cli";
 		case "models_json_key":
 		case "models_json_command":
 			return "models_json";

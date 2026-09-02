@@ -151,27 +151,6 @@ describe("ModelRegistry", () => {
 			}
 		});
 
-		test("xenon inference requests include selected Xenon Agent team header", async () => {
-			const xenonAuthStorage = AuthStorage.inMemory({
-				"xenon-inference": {
-					type: "api_key",
-					key: "agent-key",
-					xenonTeam: { teamId: "team-1", name: "Research" },
-				},
-			});
-			const registry = ModelRegistry.create(xenonAuthStorage, modelsJsonPath);
-			const model = getModelsForProvider(registry, "xenon-inference")[0];
-			expect(model).toBeDefined();
-
-			const auth = await registry.getApiKeyAndHeaders(model!);
-
-			expect(auth).toEqual({
-				ok: true,
-				apiKey: "agent-key",
-				headers: { "X-Xenon-Team-ID": "team-1" },
-			});
-		});
-
 		test("baseUrl-only override does not affect other providers", () => {
 			writeRawModelsJson({
 				anthropic: overrideConfig("https://my-proxy.example.com/v1"),
@@ -1096,10 +1075,10 @@ describe("ModelRegistry", () => {
 	});
 
 	describe("auth refresh across processes", () => {
-		test("model catalog includes unauthenticated public models and hides private Xenon routes", async () => {
-			const savedXenonApiKey = process.env.XENON_API_KEY;
+		test("refreshModelCatalog reports configured providers correctly", async () => {
+			const savedNvidiaApiKey = process.env.NVIDIA_API_KEY;
 			const savedOpenAiApiKey = process.env.OPENAI_API_KEY;
-			delete process.env.XENON_API_KEY;
+			delete process.env.NVIDIA_API_KEY;
 			delete process.env.OPENAI_API_KEY;
 			try {
 				const registry = ModelRegistry.create(authStorage, modelsJsonPath);
@@ -1107,18 +1086,13 @@ describe("ModelRegistry", () => {
 				const unauthenticated = await registry.refreshModelCatalog();
 				expect(unauthenticated.models.some((model) => model.provider === "openai")).toBe(true);
 				expect(unauthenticated.configuredProviders).not.toContain("openai");
-				expect(
-					unauthenticated.models.some(
-						(model) => model.provider === "xenon-inference" && model.id.startsWith("internal/"),
-					),
-				).toBe(false);
 
 				authStorage.setRuntimeApiKey("openai", "test-key");
 				const authenticated = await registry.refreshModelCatalog();
 				expect(authenticated.configuredProviders).toContain("openai");
 			} finally {
-				if (savedXenonApiKey !== undefined) {
-					process.env.XENON_API_KEY = savedXenonApiKey;
+				if (savedNvidiaApiKey !== undefined) {
+					process.env.NVIDIA_API_KEY = savedNvidiaApiKey;
 				}
 				if (savedOpenAiApiKey !== undefined) {
 					process.env.OPENAI_API_KEY = savedOpenAiApiKey;
@@ -1127,20 +1101,20 @@ describe("ModelRegistry", () => {
 		});
 
 		test("refresh() picks up credentials written by another process", () => {
-			const savedEnvKey = process.env.XENON_API_KEY;
-			delete process.env.XENON_API_KEY;
+			const savedEnvKey = process.env.NVIDIA_API_KEY;
+			delete process.env.NVIDIA_API_KEY;
 			try {
 				const registry = ModelRegistry.create(authStorage, modelsJsonPath);
-				expect(registry.getAvailable().some((m) => m.provider === "xenon-inference")).toBe(false);
+				expect(registry.getAvailable().some((m) => m.provider === "nvidia")).toBe(false);
 
 				const otherProcessAuth = AuthStorage.create(join(tempDir, "auth.json"));
-				otherProcessAuth.set("xenon-inference", { type: "api_key", key: "test-key" });
+				otherProcessAuth.set("nvidia", { type: "api_key", key: "test-key" });
 
 				registry.refresh();
-				expect(registry.getAvailable().some((m) => m.provider === "xenon-inference")).toBe(true);
+				expect(registry.getAvailable().some((m) => m.provider === "nvidia")).toBe(true);
 			} finally {
 				if (savedEnvKey !== undefined) {
-					process.env.XENON_API_KEY = savedEnvKey;
+					process.env.NVIDIA_API_KEY = savedEnvKey;
 				}
 			}
 		});

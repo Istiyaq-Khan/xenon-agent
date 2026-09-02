@@ -71,6 +71,7 @@ import {
 	type AgentTraceUploadResult,
 	getXenonAgentTraceCredential,
 	previewAgentTraceFile,
+	resolveXenonAgentTracesBaseUrl,
 	uploadAgentTraceFile,
 	uploadAllAgentTraces,
 } from "../../core/agent-traces.js";
@@ -131,8 +132,6 @@ import {
 	type TelemetryOnboardingOutcome,
 } from "../../core/telemetry.js";
 import { type TruncationResult, truncateTail } from "../../core/tools/truncate.js";
-import { resolveXenonAgentTracesBaseUrl } from "../../core/xenon-inference-auth.js";
-import { resolveXenonInferencePostLoginModelAction } from "../../core/xenon-inference-model-selection.js";
 import { XENON_BUTTERFLY_LOGO } from "../../themes/xenon-logo.js";
 import { getChangelogPath, parseChangelog } from "../../utils/changelog.js";
 import { copyToClipboard } from "../../utils/clipboard.js";
@@ -246,12 +245,7 @@ import type {
 	InteractiveModeLocalToolRendererDefinition,
 	InteractiveModeUiServices,
 } from "./interactive-mode-services.js";
-import {
-	isOnboardingModelReady,
-	type OnboardingStartupState,
-	shouldRunOnboarding,
-	shouldRunXenonCliOnboardingSplash,
-} from "./onboarding.js";
+import { isOnboardingModelReady, type OnboardingStartupState, shouldRunOnboarding } from "./onboarding.js";
 import type { ClientPromptStashStore, PromptStash, PromptStashState } from "./prompt-stash-state.js";
 import { QueueSelection, type QueueSelectionItem } from "./queue-selection.js";
 import { formatResumeHint } from "./resume-hint.js";
@@ -1711,10 +1705,6 @@ export class InteractiveMode {
 		return shouldRunOnboarding(this.getOnboardingState());
 	}
 
-	private shouldRunXenonCliOnboardingSplash(): boolean {
-		return shouldRunXenonCliOnboardingSplash(this.getOnboardingState());
-	}
-
 	private markOnboardingShown(): void {
 		if (!this.settingsManager.getOnboardingShown()) {
 			this.settingsManager.setOnboardingShown(true);
@@ -1727,12 +1717,11 @@ export class InteractiveMode {
 		}
 
 		const startedAt = Date.now();
-		const showXenonCliSplash = this.shouldRunXenonCliOnboardingSplash();
 		let outcome: TelemetryOnboardingOutcome = "aborted";
 		try {
 			this.markOnboardingShown();
 			await this.settingsManager.flush();
-			await this.runOnboardingFlow(showXenonCliSplash);
+			await this.runOnboardingFlow();
 			outcome = isOnboardingModelReady(this.getOnboardingState()) ? "success" : "aborted";
 			return true;
 		} catch (error) {
@@ -1754,47 +1743,25 @@ export class InteractiveMode {
 		}
 	}
 
-	private async showOnboardingModelSelection(splash: OnboardingSplashHandle): Promise<void> {
-		try {
-			await this.showConfigurationMenu("models");
-		} finally {
-			splash.dismiss();
-		}
-	}
-
-	private async runOnboardingFlow(showXenonCliSplash = this.shouldRunXenonCliOnboardingSplash()): Promise<void> {
+	private async runOnboardingFlow(): Promise<void> {
 		this.modelRegistry.refresh();
-		if (showXenonCliSplash) {
-			const splash = await this.showOnboardingSplash("choose a model");
-			if (!splash) {
-				return;
-			}
-
-			await this.showOnboardingModelSelection(splash);
-			return;
-		}
-
-		const availableModels = await this.getModelCandidates();
-		if (availableModels.length > 0) {
-			await this.showConfigurationMenu("models");
-			return;
-		}
-
-		const splash = await this.showOnboardingSplash();
+		const splash = await this.showOnboardingSplash("start");
 		if (!splash) {
 			return;
 		}
+		splash.dismiss();
 
-		splash.showProgress("Signing in to Xenon Intellect...");
-		const authResult = await this.createAuthFlows().runXenonInferenceLogin();
-		if (authResult.status !== "success") {
-			splash.dismiss();
+		const availableModels = await this.getModelCandidates();
+		if (availableModels.length > 0) {
 			return;
 		}
 
-		splash.showProgress("Preparing models...");
+		const authResult = await this.createAuthFlows().runLogin();
+		if (authResult.status !== "success") {
+			return;
+		}
+
 		await this.prepareForModelSelectionAfterLogin(authResult);
-		await this.showOnboardingModelSelection(splash);
 	}
 
 	private getMarkdownThemeWithSettings(): MarkdownTheme {
@@ -8576,41 +8543,24 @@ export class InteractiveMode {
 
 	private async prepareForModelSelectionAfterLogin(authResult: AuthenticationResult): Promise<boolean> {
 		const currentModel = this.getCurrentModel();
-		// The agent core uses unknown/unknown as its no-model sentinel.
 		const selectedModel =
 			currentModel?.provider === "unknown" && currentModel.id === "unknown" ? undefined : currentModel;
-		let action = resolveXenonInferencePostLoginModelAction(authResult, selectedModel, this.modelRegistry);
-		if (!action.openModelPicker) {
-			return false;
-		}
 
-		if (!selectedModel) {
+		if (!selectedModel && authResult.status === "success" && authResult.kind !== "service") {
 			try {
 				const availableModels = await this.getConnectionAvailableModels();
-				action = resolveXenonInferencePostLoginModelAction(authResult, selectedModel, {
-					find: (provider, modelId) =>
-						availableModels.find((model) => model.provider === provider && model.id === modelId) ??
-						this.modelRegistry.find(provider, modelId),
-				});
+				const providerModel =
+					availableModels.find((m) => m.provider === authResult.providerId) ?? availableModels[0];
+				if (providerModel) {
+					await this.applySelectedModel(providerModel);
+					await this.settingsManager.flush();
+					return true;
+				}
 			} catch {
-				// Preserve the registry fallback so selection can still report a specific failure below.
+				// Fallback
 			}
 		}
-
-		if (action.fallbackModel) {
-			try {
-				await this.applySelectedModel(action.fallbackModel);
-				await this.settingsManager.flush();
-			} catch (error) {
-				this.showError(
-					`Xenon Inference login succeeded, but the default model could not be selected: ${error instanceof Error ? error.message : String(error)}`,
-				);
-			}
-		} else if (!selectedModel) {
-			this.showError("Xenon Inference login succeeded, but the default GLM 5.2 model is unavailable.");
-		}
-
-		return true;
+		return false;
 	}
 
 	private async handleMcpCommand(args: string | undefined): Promise<void> {

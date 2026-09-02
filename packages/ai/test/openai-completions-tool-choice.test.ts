@@ -1104,8 +1104,13 @@ describe("openai-completions tool_choice", () => {
 		expect((payload as { reasoning?: unknown }).reasoning).toBeUndefined();
 	});
 
-	it("distinguishes omitted reasoning from explicit off for Xenon effort models", async () => {
-		const model = getModel("xenon-inference", "moonshotai/kimi-k3")!;
+	it("distinguishes omitted reasoning from explicit off for effort models", async () => {
+		const baseModel = getModel("nvidia", "moonshotai/kimi-k3")!;
+		const model = {
+			...baseModel,
+			compat: { ...baseModel.compat, supportsReasoningEffort: true },
+			thinkingLevelMap: { off: "none", high: "high" },
+		};
 		const context = { messages: [{ role: "user" as const, content: "Hi", timestamp: Date.now() }] };
 		let payload: unknown;
 

@@ -25,7 +25,6 @@ import { createSessionSlashCommandMessage, createSessionSlashCommandResultMessag
 import type { ModelRegistry } from "../src/core/model-registry.js";
 import { SettingsManager } from "../src/core/settings-manager.js";
 import { emptyUsage } from "../src/core/usage.js";
-import { XENON_INFERENCE_PROVIDER_ID } from "../src/core/xenon-inference-auth.js";
 import { InProcessAgentConnection } from "../src/modes/agent-connection/in-process-agent-connection.js";
 import type {
 	AgentConnectionExtensionUiRequest,
@@ -3292,7 +3291,7 @@ describe("InteractiveMode Xenon CLI onboarding", () => {
 		checkDaxnutsEasterEgg?: (model: { provider: string; id: string }) => void;
 		findExactModelMatch?: (searchTerm: string) => Promise<AgentConnectionModel | undefined>;
 		showOnboardingSplash?: (continueActionLabel?: string) => Promise<OnboardingSplashHandle | undefined>;
-		createAuthFlows?: () => { runXenonInferenceLogin(): Promise<AuthenticationResult> };
+		createAuthFlows?: () => { runLogin(options?: unknown): Promise<AuthenticationResult> };
 		showConfigurationMenu?: (tab: "providers" | "models" | "mcp-connections") => Promise<void>;
 		getModelCandidates?: () => Promise<AgentConnectionModel[]>;
 	};
@@ -3331,13 +3330,13 @@ describe("InteractiveMode Xenon CLI onboarding", () => {
 		};
 	}
 
-	const xenonModel: AgentConnectionModel = {
-		id: "openai/gpt-5.5",
-		name: "GPT-5.5",
+	const sampleModel: AgentConnectionModel = {
+		id: "meta/llama-3.3-70b-instruct",
+		name: "Llama 3.3 70B Instruct",
 		api: "openai-completions",
-		provider: XENON_INFERENCE_PROVIDER_ID,
-		baseUrl: "https://api.pinference.ai/api/v1",
-		reasoning: true,
+		provider: "nvidia",
+		baseUrl: "https://integrate.api.nvidia.com/v1",
+		reasoning: false,
 		input: ["text"],
 		cost: {
 			input: 0,
@@ -3345,8 +3344,8 @@ describe("InteractiveMode Xenon CLI onboarding", () => {
 			cacheRead: 0,
 			cacheWrite: 0,
 		},
-		contextWindow: 1050000,
-		maxTokens: 128000,
+		contextWindow: 128000,
+		maxTokens: 8192,
 	} as AgentConnectionModel;
 
 	test("defers, retries transient startup failures, and skips a persistently failing prompt", async () => {
@@ -3390,7 +3389,7 @@ describe("InteractiveMode Xenon CLI onboarding", () => {
 			await vi.advanceTimersByTimeAsync(250);
 			expect(prompt).not.toHaveBeenCalled();
 
-			model = xenonModel;
+			model = sampleModel;
 			const userSubmission = fakeThis.defaultEditor.onSubmit?.("user");
 			await vi.advanceTimersByTimeAsync(1_250);
 			await userSubmission;
@@ -3466,7 +3465,7 @@ describe("InteractiveMode Xenon CLI onboarding", () => {
 						initialPrompts: [{ text: "later [image #2]", images: [secondImage] }, { text: "last [image #4]" }],
 					},
 					{
-						getCurrentModel: () => xenonModel,
+						getCurrentModel: () => sampleModel,
 						getUserInput: vi.fn(() => inputDone.promise),
 						agentConnection: submitHarness.agentConnection,
 					},
@@ -3519,7 +3518,7 @@ describe("InteractiveMode Xenon CLI onboarding", () => {
 			createStartupRunHarness(
 				{ initialMessages: ["owned startup", "next startup"] },
 				{
-					getCurrentModel: () => xenonModel,
+					getCurrentModel: () => sampleModel,
 					getUserInput: vi.fn(() => inputDone.promise),
 					agentConnection: submitHarness.agentConnection,
 				},
@@ -3594,7 +3593,7 @@ describe("InteractiveMode Xenon CLI onboarding", () => {
 				if (scenario === "typing") editorText = "typing during startup wait";
 				const duplicate = scenario === "Alt+Enter" ? submit() : undefined;
 				expect(prompt).not.toHaveBeenCalled();
-				model = xenonModel;
+				model = sampleModel;
 				await vi.advanceTimersByTimeAsync(250);
 				expect(prompt.mock.calls.map(([message]) => message)).toEqual(["startup"]);
 				await vi.advanceTimersByTimeAsync(249);
@@ -3642,7 +3641,7 @@ describe("InteractiveMode Xenon CLI onboarding", () => {
 			createStartupRunHarness(
 				{ initialMessage: "startup" },
 				{
-					getCurrentModel: () => xenonModel,
+					getCurrentModel: () => sampleModel,
 					getUserInput: vi.fn(() => inputDone.promise),
 				},
 			),
@@ -3924,7 +3923,7 @@ describe("InteractiveMode Xenon CLI onboarding", () => {
 		const fakeThis = createStartupRunHarness(
 			{},
 			{
-				getCurrentModel: vi.fn(() => xenonModel),
+				getCurrentModel: vi.fn(() => sampleModel),
 				getUserInput: vi.fn(async () => undefined),
 				agentConnection: { prompt },
 				returnToAgentsViewRequested: false,
@@ -3936,21 +3935,21 @@ describe("InteractiveMode Xenon CLI onboarding", () => {
 		expect(prompt).not.toHaveBeenCalled();
 	});
 
-	function createXenonCliHarness(shown: boolean): OnboardingFake {
+	function createOnboardingHarness(shown: boolean, modelAvailable = true): OnboardingFake {
 		const fakeThis = Object.create(InteractiveMode.prototype) as OnboardingFake;
-		fakeThis.connectionState = createConnectionState({ model: xenonModel });
+		fakeThis.connectionState = createConnectionState({ model: modelAvailable ? sampleModel : undefined });
 		fakeThis.agentConnection = {
-			getAvailableModels: vi.fn(async () => [xenonModel]),
+			getAvailableModels: vi.fn(async () => (modelAvailable ? [sampleModel] : [])),
 		};
 		fakeThis.uiServices = {
 			modelRegistry: {
 				authStorage: AuthStorage.inMemory(),
 				refresh: vi.fn(),
-				hasConfiguredAuth: vi.fn(() => true),
+				hasConfiguredAuth: vi.fn(() => modelAvailable),
 				getProviderAuthStatus: vi.fn(
 					(): AuthStatus => ({
-						configured: false,
-						source: "xenon_cli",
+						configured: modelAvailable,
+						source: modelAvailable ? "environment" : undefined,
 					}),
 				),
 			},
@@ -3961,25 +3960,25 @@ describe("InteractiveMode Xenon CLI onboarding", () => {
 				flush: vi.fn(async () => {}),
 			},
 		};
-		fakeThis.getModelCandidates = vi.fn(async () => [xenonModel]);
+		fakeThis.getModelCandidates = vi.fn(async () => (modelAvailable ? [sampleModel] : []));
 		return fakeThis;
 	}
 
-	test("shows onboarding when the selected Xenon model is backed by Xenon CLI auth", () => {
-		const fakeThis = createXenonCliHarness(false);
+	test("shows onboarding on first run when no model is available", () => {
+		const fakeThis = createOnboardingHarness(false, false);
 
 		expect(shouldRunOnboarding.call(fakeThis)).toBe(true);
 		expect(fakeThis.uiServices.modelRegistry.refresh).toHaveBeenCalledTimes(1);
 	});
 
-	test("skips Xenon CLI onboarding after it has been shown", () => {
-		const fakeThis = createXenonCliHarness(true);
+	test("skips onboarding when already shown", () => {
+		const fakeThis = createOnboardingHarness(true, false);
 
 		expect(shouldRunOnboarding.call(fakeThis)).toBe(false);
 	});
 
 	test("persists that onboarding was shown once", () => {
-		const fakeThis = createXenonCliHarness(false);
+		const fakeThis = createOnboardingHarness(false, false);
 
 		markOnboardingShown.call(fakeThis);
 
@@ -3989,7 +3988,7 @@ describe("InteractiveMode Xenon CLI onboarding", () => {
 	test("persists onboarding before opening the one-shot flow", async () => {
 		let shown = false;
 		let flushed = false;
-		const fakeThis = createXenonCliHarness(false);
+		const fakeThis = createOnboardingHarness(false, false);
 		fakeThis.uiServices.settingsManager.getOnboardingShown = vi.fn(() => shown);
 		fakeThis.uiServices.settingsManager.setOnboardingShown = vi.fn((nextShown: boolean) => {
 			shown = nextShown;
@@ -3997,8 +3996,7 @@ describe("InteractiveMode Xenon CLI onboarding", () => {
 		fakeThis.uiServices.settingsManager.flush = vi.fn(async () => {
 			flushed = true;
 		});
-		fakeThis.runOnboardingFlow = vi.fn(async (showXenonCliSplash?: boolean) => {
-			expect(showXenonCliSplash).toBe(true);
+		fakeThis.runOnboardingFlow = vi.fn(async () => {
 			expect(shown).toBe(true);
 			expect(flushed).toBe(true);
 		});
@@ -4007,163 +4005,121 @@ describe("InteractiveMode Xenon CLI onboarding", () => {
 
 		expect(fakeThis.uiServices.settingsManager.setOnboardingShown).toHaveBeenCalledWith(true);
 		expect(fakeThis.uiServices.settingsManager.flush).toHaveBeenCalledTimes(1);
-		expect(fakeThis.runOnboardingFlow).toHaveBeenCalledWith(true);
+		expect(fakeThis.runOnboardingFlow).toHaveBeenCalledTimes(1);
 	});
 
-	test("cancelled Xenon CLI splash exits onboarding before opening configuration", async () => {
-		const fakeThis = createXenonCliHarness(false);
+	test("cancelled splash exits onboarding cleanly", async () => {
+		const fakeThis = createOnboardingHarness(false, false);
 		fakeThis.showOnboardingSplash = vi.fn(async () => undefined);
-		fakeThis.showConfigurationMenu = vi.fn(async () => {});
+		fakeThis.createAuthFlows = vi.fn();
 
 		await expect(runOnboardingFlow.call(fakeThis)).resolves.toBeUndefined();
 
-		expect(fakeThis.showConfigurationMenu).not.toHaveBeenCalled();
+		expect(fakeThis.createAuthFlows).not.toHaveBeenCalled();
 	});
 
-	test("opens the Models tab after the Xenon CLI splash", async () => {
-		const fakeThis = createXenonCliHarness(false);
-		const configuration = createDeferred<void>();
+	test("launches into session when models are already available", async () => {
+		const fakeThis = createOnboardingHarness(false);
+		fakeThis.connectionState = createConnectionState({ model: undefined });
+		fakeThis.getModelCandidates = vi.fn(async () => [sampleModel]);
 		const dismiss = vi.fn();
 		fakeThis.showOnboardingSplash = vi.fn(async () => ({ showProgress: vi.fn(), dismiss }));
-		fakeThis.showConfigurationMenu = vi.fn(() => configuration.promise);
+		fakeThis.createAuthFlows = vi.fn();
 
-		const onboarding = runOnboardingFlow.call(fakeThis);
-		await flushAsyncWork();
+		await expect(runOnboardingFlow.call(fakeThis)).resolves.toBeUndefined();
 
-		expect(fakeThis.showConfigurationMenu).toHaveBeenCalledWith("models");
-		expect(dismiss).not.toHaveBeenCalled();
-
-		configuration.resolve();
-		await expect(onboarding).resolves.toBeUndefined();
-
+		expect(fakeThis.showOnboardingSplash).toHaveBeenCalledWith("start");
 		expect(dismiss).toHaveBeenCalledTimes(1);
+		expect(fakeThis.createAuthFlows).not.toHaveBeenCalled();
 	});
 
-	test("opens the Models tab when models are already available", async () => {
-		const fakeThis = createXenonCliHarness(false);
-		fakeThis.connectionState = createConnectionState({ model: undefined });
-		fakeThis.getModelCandidates = vi.fn(async () => [xenonModel]);
-		fakeThis.showConfigurationMenu = vi.fn(async () => {});
-
-		await expect(runOnboardingFlow.call(fakeThis, false)).resolves.toBeUndefined();
-
-		expect(fakeThis.getModelCandidates).toHaveBeenCalledTimes(1);
-		expect(fakeThis.showConfigurationMenu).toHaveBeenCalledWith("models");
-	});
-
-	test("opens Xenon login before the Models tab when no models are available", async () => {
-		const fakeThis = createXenonCliHarness(false);
+	test("opens provider login when no models are available", async () => {
+		const fakeThis = createOnboardingHarness(false);
 		fakeThis.connectionState = createConnectionState({ model: undefined });
 		fakeThis.getModelCandidates = vi.fn(async () => []);
-		const showProgress = vi.fn();
 		const dismiss = vi.fn();
-		fakeThis.showOnboardingSplash = vi.fn(async () => ({ showProgress, dismiss }));
-		fakeThis.createAuthFlows = vi.fn(() => ({
-			runXenonInferenceLogin: vi.fn(async () => ({
-				status: "success" as const,
-				providerId: XENON_INFERENCE_PROVIDER_ID,
-				providerName: "Xenon Inference",
-				authType: "api_key" as const,
-				kind: "provider" as const,
-			})),
+		fakeThis.showOnboardingSplash = vi.fn(async () => ({ showProgress: vi.fn(), dismiss }));
+		const runLogin = vi.fn(async () => ({
+			status: "success" as const,
+			providerId: "nvidia",
+			providerName: "NVIDIA NIM",
+			authType: "api_key" as const,
+			kind: "provider" as const,
 		}));
+		fakeThis.createAuthFlows = vi.fn(() => ({ runLogin }));
 		fakeThis.prepareForModelSelectionAfterLogin = vi.fn(async () => true);
-		const configuration = createDeferred<void>();
-		fakeThis.showConfigurationMenu = vi.fn(() => configuration.promise);
 
-		const onboarding = runOnboardingFlow.call(fakeThis, false);
-		await flushAsyncWork();
+		await runOnboardingFlow.call(fakeThis);
 
-		expect(fakeThis.showOnboardingSplash).toHaveBeenCalledWith();
-		expect(showProgress).toHaveBeenNthCalledWith(1, "Signing in to Xenon Intellect...");
-		expect(showProgress).toHaveBeenNthCalledWith(2, "Preparing models...");
-		expect(fakeThis.prepareForModelSelectionAfterLogin).toHaveBeenCalledTimes(1);
-		expect(fakeThis.showConfigurationMenu).toHaveBeenCalledWith("models");
-		expect(dismiss).not.toHaveBeenCalled();
-
-		configuration.resolve();
-		await expect(onboarding).resolves.toBeUndefined();
-
+		expect(fakeThis.showOnboardingSplash).toHaveBeenCalledWith("start");
 		expect(dismiss).toHaveBeenCalledTimes(1);
+		expect(runLogin).toHaveBeenCalledTimes(1);
+		expect(fakeThis.prepareForModelSelectionAfterLogin).toHaveBeenCalledTimes(1);
 	});
 });
 
 describe("InteractiveMode post-login model preparation", () => {
 	type LoginHarness = {
 		prepareForModelSelectionAfterLogin(authResult: AuthenticationResult): Promise<boolean>;
-		invalidateConnectionModels(): void;
 		getCurrentModel(): AgentConnectionModel | undefined;
+		getConnectionAvailableModels(): Promise<AgentConnectionModel[]>;
 		applySelectedModel(model: AgentConnectionModel): Promise<void>;
 		showError(message: string): void;
-		uiServices: {
-			modelRegistry: Pick<ModelRegistry, "find">;
-			settingsManager: {
-				flush(): Promise<void>;
-			};
+		settingsManager: {
+			flush(): Promise<void>;
 		};
 	};
 
 	const prepareForModelSelectionAfterLogin = (InteractiveMode.prototype as unknown as LoginHarness)
 		.prepareForModelSelectionAfterLogin;
-	const loginXenonModel: AgentConnectionModel = {
-		id: "openai/gpt-5.5",
-		name: "GPT-5.5",
+	const loginNvidiaModel: AgentConnectionModel = {
+		id: "meta/llama-3.3-70b-instruct",
+		name: "Llama 3.3 70B Instruct",
 		api: "openai-completions",
-		provider: XENON_INFERENCE_PROVIDER_ID,
-		baseUrl: "https://api.pinference.ai/api/v1",
-		reasoning: true,
+		provider: "nvidia",
+		baseUrl: "https://integrate.api.nvidia.com/v1",
+		reasoning: false,
 		input: ["text"],
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-		contextWindow: 1050000,
-		maxTokens: 128000,
+		contextWindow: 128000,
+		maxTokens: 8192,
 	} as AgentConnectionModel;
 
-	test("persists GLM 5.2 before model selection after Xenon Inference login", async () => {
-		const fallbackModel = { ...loginXenonModel, id: "z-ai/glm-5.2", name: "GLM 5.2" };
+	test("applies provider model after login when no model was selected", async () => {
 		const flushSettings = vi.fn(async () => {});
 		const fakeThis = Object.create(InteractiveMode.prototype) as LoginHarness;
-		fakeThis.invalidateConnectionModels = vi.fn();
 		fakeThis.getCurrentModel = vi.fn(() => undefined);
+		fakeThis.getConnectionAvailableModels = vi.fn(async () => [loginNvidiaModel]);
 		fakeThis.applySelectedModel = vi.fn(async () => {});
 		fakeThis.showError = vi.fn();
-		fakeThis.uiServices = {
-			modelRegistry: {
-				find: vi.fn(() => fallbackModel),
-			},
-			settingsManager: {
-				flush: flushSettings,
-			},
-		};
+		Object.defineProperty(fakeThis, "settingsManager", {
+			value: { flush: flushSettings },
+			configurable: true,
+		});
 
 		await expect(
 			prepareForModelSelectionAfterLogin.call(fakeThis, {
 				status: "success",
-				providerId: XENON_INFERENCE_PROVIDER_ID,
-				providerName: "Xenon Inference",
+				providerId: "nvidia",
+				providerName: "NVIDIA NIM",
 				authType: "api_key",
 				kind: "provider",
 			}),
 		).resolves.toBe(true);
 
-		expect(fakeThis.invalidateConnectionModels).not.toHaveBeenCalled();
-		expect(fakeThis.applySelectedModel).toHaveBeenCalledWith(fallbackModel);
+		expect(fakeThis.applySelectedModel).toHaveBeenCalledWith(loginNvidiaModel);
 		expect(flushSettings).toHaveBeenCalledTimes(1);
 	});
 
-	test("preserves refreshed models after any model-provider login", async () => {
+	test("preserves existing selected model without forcing override", async () => {
 		const fakeThis = Object.create(InteractiveMode.prototype) as LoginHarness;
-		fakeThis.invalidateConnectionModels = vi.fn();
-		fakeThis.getCurrentModel = vi.fn(() => loginXenonModel);
+		fakeThis.getCurrentModel = vi.fn(() => loginNvidiaModel);
 		fakeThis.applySelectedModel = vi.fn(async () => {});
 		fakeThis.showError = vi.fn();
-		fakeThis.uiServices = {
-			modelRegistry: {
-				find: vi.fn(() => undefined),
-			},
-			settingsManager: {
-				flush: vi.fn(async () => {}),
-			},
-		};
+		Object.defineProperty(fakeThis, "settingsManager", {
+			value: { flush: vi.fn(async () => {}) },
+			configurable: true,
+		});
 
 		await expect(
 			prepareForModelSelectionAfterLogin.call(fakeThis, {
@@ -4175,7 +4131,6 @@ describe("InteractiveMode post-login model preparation", () => {
 			}),
 		).resolves.toBe(false);
 
-		expect(fakeThis.invalidateConnectionModels).not.toHaveBeenCalled();
 		expect(fakeThis.applySelectedModel).not.toHaveBeenCalled();
 	});
 });

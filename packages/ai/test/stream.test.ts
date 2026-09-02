@@ -28,7 +28,7 @@ const oauthTokens = await Promise.all([
 	resolveApiKey("openai-codex"),
 ]);
 const [anthropicOAuthToken, githubCopilotToken, openaiCodexToken] = oauthTokens;
-const xenonInferenceApiKey = getEnvApiKey("xenon-inference");
+const nvidiaApiKey = getEnvApiKey("nvidia");
 
 const calculatorSchema = Type.Object({
 	a: Type.Number({ description: "First number" }),
@@ -432,8 +432,8 @@ describe("Generate E2E Tests", () => {
 		});
 	});
 
-	describe.skipIf(!xenonInferenceApiKey)("Xenon Inference Provider (openai/gpt-5.5)", () => {
-		const llm = getModel("xenon-inference", "openai/gpt-5.5");
+	describe.skipIf(!nvidiaApiKey)("NVIDIA NIM Provider (meta/llama-3.3-70b-instruct)", () => {
+		const llm = getModel("nvidia", "meta/llama-3.3-70b-instruct");
 
 		it("should complete basic text generation", { retry: 3 }, async () => {
 			await basicTextGeneration(llm);

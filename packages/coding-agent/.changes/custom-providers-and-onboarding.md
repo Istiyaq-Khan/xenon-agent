@@ -1,0 +1,4 @@
+- Refactored onboarding splash prompt to start directly without forcing legacy login.
+- Removed legacy Xenon Inference login, team selection, and hardcoded provider routing.
+- Added native NVIDIA NIM provider support and default model resolution.
+- Added generic custom provider support for OpenAI- and Anthropic-compatible endpoints in settings.

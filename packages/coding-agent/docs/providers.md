@@ -51,7 +51,7 @@ xenon
 | Anthropic | `ANTHROPIC_API_KEY` | `anthropic` |
 | Azure OpenAI Responses | `AZURE_OPENAI_API_KEY` | `azure-openai-responses` |
 | OpenAI | `OPENAI_API_KEY` | `openai` |
-| Xenon Inference | `XENON_API_KEY` | `xenon-inference` |
+| NVIDIA NIM | `NVIDIA_API_KEY` | `nvidia` |
 | DeepSeek | `DEEPSEEK_API_KEY` | `deepseek` |
 | Google Gemini | `GEMINI_API_KEY` | `google` |
 | Mistral | `MISTRAL_API_KEY` | `mistral` |
@@ -85,7 +85,7 @@ Store credentials in `~/.xenon-agent/auth.json`:
 {
   "anthropic": { "type": "api_key", "key": "sk-ant-..." },
   "openai": { "type": "api_key", "key": "sk-..." },
-  "xenon-inference": { "type": "api_key", "key": "..." },
+  "nvidia": { "type": "api_key", "key": "nvapi-..." },
   "deepseek": { "type": "api_key", "key": "sk-..." },
   "google": { "type": "api_key", "key": "..." },
   "opencode": { "type": "api_key", "key": "..." },
@@ -119,9 +119,18 @@ The `key` field supports three formats:
 
 OAuth credentials are also stored here after `/login` and managed automatically.
 
-### Xenon Inference
+### NVIDIA NIM
 
-Xenon Inference uses the OpenAI-compatible endpoint at `https://api.pinference.ai/api/v1`. Set `XENON_API_KEY` or store an API key for `xenon-inference` via `/login`.
+NVIDIA NIM provides access to state-of-the-art models via OpenAI-compatible endpoints at `https://integrate.api.nvidia.com/v1/chat/completions`. Set `NVIDIA_API_KEY` or store an API key for `nvidia` / `nvidia-nim` via `/login`. Popular supported models include:
+- `meta/llama-3.3-70b-instruct` (default)
+- `moonshotai/kimi-k3`
+- `deepseek-ai/deepseek-r1`
+- `nvidia/llama-3.1-nemotron-70b-instruct`
+- `meta/llama-3.1-405b-instruct`
+- `meta/llama-3.1-8b-instruct`
+- `mistralai/mistral-large-2-instruct`
+- `nvidia/nemotron-4-340b-instruct`
+- `qwen/qwen2.5-72b-instruct`
 
 ## Cloud Providers
 

@@ -1,0 +1,1 @@
+- Added native NVIDIA NIM provider support and removed legacy Xenon Inference catalog.

@@ -7,12 +7,22 @@ import { readFirstLineSync } from "../utils/file-lines.js";
 import type { AuthStorage } from "./auth-storage.js";
 import { getSessionArtifactsRoot, type SessionHeader, type SessionManager } from "./session-manager.js";
 import type { SettingsManager } from "./settings-manager.js";
-import {
-	loadXenonCliConfig,
-	resolveXenonAgentTracesBaseUrl,
-	XENON_AGENT_TRACES_PROVIDER_ID,
-	XENON_INFERENCE_PROVIDER_ID,
-} from "./xenon-inference-auth.js";
+export const XENON_AGENT_TRACES_PROVIDER_ID = "xenon-agent-traces";
+const DEFAULT_XENON_AGENT_TRACES_URL = "https://api.xenonintellect.ai/api/v1";
+
+export function resolveXenonAgentTracesBaseUrl(configuredUrl?: string): string {
+	const trimmed = configuredUrl?.trim() || stringEnv("XENON_AGENT_TRACES_BASE_URL");
+	if (trimmed) {
+		return trimmed.replace(/\/+$/, "");
+	}
+	return DEFAULT_XENON_AGENT_TRACES_URL;
+}
+
+function formatTraceSessionUrl(baseUrl: string, sessionId: string): string {
+	const clean = baseUrl.replace(/\/+$/, "");
+	const baseWithoutApi = clean.replace(/\/api\/v1$/, "");
+	return `${baseWithoutApi}/api/v1/agent-traces/sessions/${encodeURIComponent(sessionId)}`;
+}
 
 const MAX_TRACE_BYTES = 20 * 1024 * 1024;
 const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
@@ -30,7 +40,7 @@ const TRACE_UPLOAD_RATE_LIMIT_SAFETY_MS = 100;
 const TRACE_UPLOAD_ALL_MIN_REQUEST_INTERVAL_MS =
 	Math.ceil(TRACE_UPLOAD_RATE_LIMIT_WINDOW_MS / TRACE_UPLOAD_RATE_LIMIT_REQUESTS) + TRACE_UPLOAD_RATE_LIMIT_SAFETY_MS;
 
-export type AgentTraceCredentialSource = "environment" | "stored" | "xenon-inference" | "xenon-cli";
+export type AgentTraceCredentialSource = "environment" | "stored";
 
 export interface AgentTraceCredential {
 	apiKey: string;
@@ -511,7 +521,7 @@ export async function previewAgentTraceFile(options: AgentTracePreviewOptions): 
 		size: fileSize,
 		maxBytes: MAX_TRACE_BYTES,
 		uploadable: fileSize <= MAX_TRACE_BYTES,
-		endpoint: `${baseUrl}/api/v1/agent-traces/sessions/${encodeURIComponent(header.id)}`,
+		endpoint: formatTraceSessionUrl(baseUrl, header.id),
 		gitRepo: git?.repoUrl,
 		gitCommit: git?.commit,
 		contentPreview: preview.content,
@@ -654,24 +664,6 @@ export async function getXenonAgentTraceCredential(
 		return { apiKey: traceKey, source: "stored", label: "Xenon Agent Traces credential" };
 	}
 
-	const xenonEnvKey = stringEnv("XENON_API_KEY");
-	if (xenonEnvKey) {
-		return { apiKey: xenonEnvKey, source: "environment", label: "XENON_API_KEY" };
-	}
-
-	const xenonCredential = authStorage.get(XENON_INFERENCE_PROVIDER_ID);
-	if (xenonCredential) {
-		const xenonKey = await authStorage.getApiKey(XENON_INFERENCE_PROVIDER_ID, { includeFallback: false });
-		if (xenonKey) {
-			return { apiKey: xenonKey, source: "xenon-inference", label: "Xenon Inference credential" };
-		}
-	}
-
-	const xenonCliKey = loadXenonCliConfig(options.configPath).apiKey;
-	if (xenonCliKey) {
-		return { apiKey: xenonCliKey, source: "xenon-cli", label: "Xenon CLI credential" };
-	}
-
 	return undefined;
 }
 async function getAgentTracesEnabled(
@@ -803,7 +795,7 @@ async function performAgentTraceUpload(
 	}
 
 	const baseUrl = resolveXenonAgentTracesBaseUrl(options.baseUrl);
-	const url = `${baseUrl}/api/v1/agent-traces/sessions/${encodeURIComponent(header.id)}`;
+	const url = formatTraceSessionUrl(baseUrl, header.id);
 	const fetchFn = options.fetchFn ?? fetch;
 
 	let response: Response;

@@ -9,9 +9,6 @@ const SWEEP_INTERVAL_MS = 25_000;
 // Collapse a tool-use loop's rapid turn_end bursts into one summarization.
 const SETTLE_DEBOUNCE_MS = 2_000;
 
-const SUMMARY_MODEL_PROVIDER = "xenon-inference";
-const SUMMARY_MODEL_ID = "qwen/qwen3-30b-a3b-instruct-2507";
-
 const SUMMARY_CONTEXT_MESSAGES = 8;
 const SUMMARY_MAX_CHARS_PER_MESSAGE = 600;
 // Generous so a chatty model still closes the tags before truncation.
@@ -37,11 +34,11 @@ export interface AgentStatusResult {
 	taskState?: AgentTaskState;
 }
 
-/** Resolve the cheap summary model, or undefined when it has no configured auth. */
+/** Resolve an available summary model, or undefined when none configured. */
 export function resolveSummaryModel(registry: ModelRegistry): Model<Api> | undefined {
-	const model = registry.find(SUMMARY_MODEL_PROVIDER, SUMMARY_MODEL_ID);
-	if (model && registry.hasConfiguredAuth(model)) {
-		return model;
+	const available = registry.getAvailable();
+	if (available.length > 0) {
+		return available[0];
 	}
 	return undefined;
 }

@@ -300,7 +300,7 @@ describe("default model selection", () => {
 	test("openai defaults track current models", () => {
 		expect(defaultModelPerProvider.openai).toBe("gpt-5.4");
 		expect(defaultModelPerProvider["openai-codex"]).toBe("gpt-5.5");
-		expect(defaultModelPerProvider["xenon-inference"]).toBe("z-ai/glm-5.2");
+		expect(defaultModelPerProvider.nvidia).toBe("meta/llama-3.3-70b-instruct");
 	});
 
 	test("zai, minimax, and cerebras defaults track current models", () => {
@@ -347,38 +347,7 @@ describe("default model selection", () => {
 		expect(result.thinkingLevel).toBe("medium");
 	});
 
-	test("findInitialModel prefers GLM 5.2 when Xenon Inference is configured", async () => {
-		const anthropicModel: Model<"anthropic-messages"> = {
-			...mockModels[0],
-			id: "claude-opus-4-7",
-			name: "Claude Opus 4.7",
-		};
-		const xenonModel: Model<"anthropic-messages"> = {
-			id: "z-ai/glm-5.2",
-			name: "GLM 5.2",
-			api: "anthropic-messages",
-			provider: "xenon-inference",
-			baseUrl: "https://api.pinference.ai/api/v1",
-			reasoning: true,
-			input: ["text"],
-			cost: { input: 1, output: 2, cacheRead: 0, cacheWrite: 0 },
-			contextWindow: 1048576,
-			maxTokens: 101376,
-		};
-		const registry = {
-			refreshAvailableModels: async () => [anthropicModel, xenonModel],
-		} as unknown as Parameters<typeof findInitialModel>[0]["modelRegistry"];
-
-		const result = await findInitialModel({
-			scopedModels: [],
-			isContinuing: false,
-			modelRegistry: registry,
-		});
-
-		expect(result.model).toBe(xenonModel);
-	});
-
-	test("findInitialModel uses another provider default when Xenon Inference is not configured", async () => {
+	test("findInitialModel selects configured provider default", async () => {
 		const anthropicModel: Model<"anthropic-messages"> = {
 			...mockModels[0],
 			id: "claude-opus-4-7",

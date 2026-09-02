@@ -114,7 +114,7 @@ export class XenonOnboardingSplashComponent implements Component {
 		if (this.progressMessage) {
 			return [{ text: this.progressMessage, tone: "muted" }];
 		}
-		const actionLabel = this.options.continueActionLabel ?? "login with Xenon Intellect";
+		const actionLabel = this.options.continueActionLabel ?? "start";
 		return [
 			{ text: "Press ", tone: "muted" },
 			{ text: "Enter", tone: "accent", bold: true },

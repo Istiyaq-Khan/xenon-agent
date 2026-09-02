@@ -22,8 +22,9 @@ import {
 } from "@earendil-works/pi-ai";
 import { registerBuiltinMcpOAuthProviders } from "@earendil-works/pi-ai/mcp";
 import { registerOAuthProvider, resetOAuthProviders } from "@earendil-works/pi-ai/oauth";
-import { existsSync, readFileSync, renameSync, writeFileSync } from "fs";
-import { dirname, join } from "path";
+import { existsSync, readFileSync } from "fs";
+import { homedir } from "os";
+import { join } from "path";
 import { type Static, type TProperties, Type } from "typebox";
 import type { Validator } from "typebox/compile";
 import type { TLocalizedValidationError } from "typebox/error";
@@ -35,12 +36,6 @@ import {
 	resolveConfigValueUncached,
 	resolveHeadersOrThrow,
 } from "./resolve-config-value.js";
-import { XENON_INFERENCE_PROVIDER_ID } from "./xenon-inference-auth.js";
-import {
-	fetchAuthorizedPrivateXenonInferenceModelIds,
-	getPrivateXenonInferenceModels,
-	isPrivateXenonInferenceModel,
-} from "./xenon-inference-models.js";
 
 const PercentileCutoffsSchema = Type.Object({
 	p50: Type.Optional(Type.Number()),
@@ -243,9 +238,12 @@ interface ProviderOverride {
 }
 
 interface ProviderRequestConfig {
+	baseUrl?: string;
 	apiKey?: string;
+	api?: Api;
 	headers?: Record<string, string>;
 	authHeader?: boolean;
+	compat?: Model<Api>["compat"];
 }
 
 type ProviderRequestAuthSource = {
@@ -410,26 +408,6 @@ function readOpenAICodexModelIds(value: unknown): Set<string> {
 	);
 }
 
-const PRIVATE_XENON_AUTHORIZATION_CACHE_FILE = "xenon-inference-private-models.json";
-const PRIVATE_XENON_AUTHORIZATION_CACHE_TTL_MS = 5 * 60_000;
-const PRIVATE_XENON_BACKGROUND_REFRESH_TIMEOUT_MS = 3_000;
-
-interface PrivateXenonAuthorizationCache {
-	fingerprint: string;
-	modelIds: Set<string>;
-	refreshedAt: number;
-}
-
-function privateXenonAuthorizationFingerprint(apiKey: string, teamId: string): string {
-	return createHash("sha256").update(apiKey).update("\0").update(teamId).digest("hex");
-}
-
-function isOfflineModeEnabled(): boolean {
-	const value = process.env.PI_OFFLINE;
-	if (!value) return false;
-	return value === "1" || value.toLowerCase() === "true" || value.toLowerCase() === "yes";
-}
-
 /**
  * Model registry - loads and manages models, resolves API keys via AuthStorage.
  */
@@ -440,11 +418,7 @@ export class ModelRegistry {
 	private lastProviderAuthSourceTokens: Map<string, AuthSourceToken> = new Map();
 	private modelRequestHeaders: Map<string, Record<string, string>> = new Map();
 	private registeredProviders: Map<string, ProviderConfigInput> = new Map();
-	private authorizedPrivateXenonInferenceModelIds = new Set<string>();
-	private authorizedPrivateXenonInferenceTeamId: string | undefined;
-	private explicitPrivateXenonInferenceModelIds = new Set<string>();
 	private openAICodexModelsCache: { authFingerprint: string; modelIds: Set<string>; refreshedAt: number } | undefined;
-	private backgroundPrivateXenonAuthorization: { fingerprint: string; promise: Promise<void> } | undefined;
 	private loadError: string | undefined = undefined;
 
 	/** Re-register dynamic OAuth providers (e.g. user MCP servers) after refresh() resets the registry. */
@@ -470,15 +444,12 @@ export class ModelRegistry {
 	}
 
 	/**
-	 * Reload models from disk (built-in + custom from models.json).
+	 * Reload models from disk (built-in + custom from settings/models.json).
 	 */
 	refresh(): void {
 		this.providerRequestConfigs.clear();
 		this.modelRequestHeaders.clear();
 		this.lastProviderAuthSourceTokens.clear();
-		this.authorizedPrivateXenonInferenceModelIds.clear();
-		this.authorizedPrivateXenonInferenceTeamId = undefined;
-		this.explicitPrivateXenonInferenceModelIds.clear();
 		this.loadError = undefined;
 
 		// Credentials may have been written by another process (e.g. the UI
@@ -488,11 +459,6 @@ export class ModelRegistry {
 		resetOAuthProviders();
 		// reset drops everything but model-provider built-ins; re-add MCP integrations
 		// (built-in catalog + this session's user-declared servers via the hook).
-		// NOTE: the OAuth registry is process-global. Built-in MCP providers are
-		// identical across sessions so they always survive; a user-declared server
-		// unique to another daemon session is dropped here and re-registered on that
-		// session's next refresh. Fully isolating it would require a session-scoped
-		// registry in pi-ai (out of scope here).
 		registerBuiltinMcpOAuthProviders();
 		this.onOAuthProvidersReset?.();
 
@@ -510,11 +476,104 @@ export class ModelRegistry {
 		return this.loadError;
 	}
 
+	private loadSettingsCustomProviders(): {
+		models: Model<Api>[];
+		overrides: Map<string, ProviderOverride>;
+		modelOverrides: Map<string, Map<string, ModelOverride>>;
+	} {
+		const result = {
+			models: [] as Model<Api>[],
+			overrides: new Map<string, ProviderOverride>(),
+			modelOverrides: new Map<string, Map<string, ModelOverride>>(),
+		};
+
+		const candidatePaths: string[] = [];
+		const agentDir = getAgentDir();
+		candidatePaths.push(join(agentDir, "settings.json"));
+		candidatePaths.push(join(homedir(), ".xenon", "config.json"));
+
+		for (const configPath of candidatePaths) {
+			if (!existsSync(configPath)) continue;
+			try {
+				const content = readFileSync(configPath, "utf-8");
+				const parsed = JSON.parse(stripJsonComments(content)) as Record<string, unknown>;
+				if (!parsed || typeof parsed !== "object") continue;
+
+				const customProvidersRaw = parsed.customProviders ?? parsed.providers;
+				if (!customProvidersRaw || typeof customProvidersRaw !== "object") continue;
+
+				const providersList: { id: string; config: Record<string, any> }[] = Array.isArray(customProvidersRaw)
+					? customProvidersRaw.map((p: any) => ({ id: p?.id || p?.name || "", config: p || {} }))
+					: Object.entries(customProvidersRaw as Record<string, any>).map(([k, v]) => ({
+							id: k,
+							config: v || {},
+						}));
+
+				for (const { id: rawId, config: pConfig } of providersList) {
+					const providerId = (pConfig.id || rawId || pConfig.name || "").trim();
+					if (!providerId) continue;
+
+					const protocol = String(pConfig.protocol || "").toLowerCase();
+					const api: Api = protocol.includes("anthropic") ? "anthropic-messages" : "openai-completions";
+					const baseUrl = pConfig.baseUrl || pConfig.uri || "";
+
+					if (baseUrl) {
+						result.overrides.set(providerId, { baseUrl, compat: pConfig.compat });
+					}
+
+					this.storeProviderRequestConfig(providerId, {
+						baseUrl: baseUrl || undefined,
+						apiKey: pConfig.apiKey || (pConfig.apiKeyEnv ? `$${pConfig.apiKeyEnv}` : undefined),
+						headers: pConfig.headers,
+						compat: pConfig.compat,
+					});
+
+					const modelDefs = pConfig.models;
+					if (Array.isArray(modelDefs)) {
+						for (const modelDef of modelDefs) {
+							if (typeof modelDef === "string") {
+								result.models.push({
+									id: modelDef,
+									name: modelDef,
+									api,
+									provider: providerId,
+									baseUrl,
+									reasoning: false,
+									input: ["text", "image"],
+									cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+									contextWindow: 128000,
+									maxTokens: 16384,
+								});
+							} else if (modelDef && typeof modelDef === "object" && modelDef.id) {
+								result.models.push({
+									id: modelDef.id,
+									name: modelDef.name ?? modelDef.id,
+									api: (modelDef.api || api) as Api,
+									provider: providerId,
+									baseUrl: modelDef.baseUrl ?? baseUrl,
+									reasoning: modelDef.reasoning ?? false,
+									input: modelDef.input ?? ["text", "image"],
+									cost: modelDef.cost ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+									contextWindow: modelDef.contextWindow ?? 128000,
+									maxTokens: modelDef.maxTokens ?? 16384,
+								});
+							}
+						}
+					}
+				}
+			} catch {
+				// Ignore malformed optional config files
+			}
+		}
+
+		return result;
+	}
+
 	private loadModels(): void {
 		const {
-			models: customModels,
-			overrides,
-			modelOverrides,
+			models: customModelsFromJson,
+			overrides: jsonOverrides,
+			modelOverrides: jsonModelOverrides,
 			error,
 		} = this.modelsJsonPath ? this.loadCustomModels(this.modelsJsonPath) : emptyCustomModelsResult();
 
@@ -522,10 +581,12 @@ export class ModelRegistry {
 			this.loadError = error;
 		}
 
-		this.explicitPrivateXenonInferenceModelIds = new Set(
-			customModels.filter(isPrivateXenonInferenceModel).map((model) => model.id),
-		);
-		const builtInModels = [...this.loadBuiltInModels(overrides, modelOverrides), ...getPrivateXenonInferenceModels()];
+		const settingsCustom = this.loadSettingsCustomProviders();
+		const overrides = new Map([...settingsCustom.overrides, ...jsonOverrides]);
+		const modelOverrides = new Map([...settingsCustom.modelOverrides, ...jsonModelOverrides]);
+		const customModels = [...settingsCustom.models, ...customModelsFromJson];
+
+		const builtInModels = this.loadBuiltInModels(overrides, modelOverrides);
 		let combined = this.mergeCustomModels(builtInModels, customModels);
 
 		for (const oauthProvider of this.authStorage.getOAuthProviders()) {
@@ -761,207 +822,27 @@ export class ModelRegistry {
 	 * This is a fast check that doesn't refresh OAuth tokens.
 	 */
 	getAvailable(): Model<Api>[] {
-		return this.models.filter((model) => {
-			if (
-				isPrivateXenonInferenceModel(model) &&
-				!this.explicitPrivateXenonInferenceModelIds.has(model.id) &&
-				!this.authorizedPrivateXenonInferenceModelIds.has(model.id)
-			) {
-				return false;
-			}
-			return this.hasConfiguredAuth(model);
-		});
+		return this.models.filter((model) => this.hasConfiguredAuth(model));
 	}
 
 	async refreshAvailableModels(): Promise<Model<Api>[]> {
-		const previousPrivateModelIds = new Set(this.authorizedPrivateXenonInferenceModelIds);
-		const previousTeamId = this.authorizedPrivateXenonInferenceTeamId;
 		this.refresh();
-		await this.refreshPrivateXenonInferenceAuthorization(previousPrivateModelIds, previousTeamId);
 		return this.getAvailable();
-	}
-
-	private async refreshPrivateXenonInferenceAuthorization(
-		previousPrivateModelIds = new Set(this.authorizedPrivateXenonInferenceModelIds),
-		previousTeamId = this.authorizedPrivateXenonInferenceTeamId,
-	): Promise<void> {
-		const apiKey = await this.authStorage.getApiKey(XENON_INFERENCE_PROVIDER_ID);
-		const teamHeaders = this.authStorage.getProviderHeaders(XENON_INFERENCE_PROVIDER_ID);
-		const teamId = teamHeaders?.["X-Xenon-Team-ID"];
-		if (!apiKey || !teamHeaders || !teamId) {
-			this.authorizedPrivateXenonInferenceModelIds.clear();
-			this.authorizedPrivateXenonInferenceTeamId = undefined;
-			return;
-		}
-
-		const fingerprint = privateXenonAuthorizationFingerprint(apiKey, teamId);
-		const cached = this.readPrivateXenonAuthorizationCache();
-		if (cached?.fingerprint === fingerprint) {
-			// Serve the persisted authorization decision so startup and model lists
-			// don't block on the network. A stale cache refreshes in the background
-			// and the updated ids apply to subsequent lookups in this process.
-			this.authorizedPrivateXenonInferenceModelIds = new Set(cached.modelIds);
-			this.authorizedPrivateXenonInferenceTeamId = teamId;
-			const cacheIsFresh = Date.now() - cached.refreshedAt < PRIVATE_XENON_AUTHORIZATION_CACHE_TTL_MS;
-			if (cacheIsFresh || isOfflineModeEnabled()) {
-				return;
-			}
-			this.startBackgroundPrivateXenonAuthorizationRefresh(apiKey, teamHeaders, teamId, fingerprint);
-			return;
-		}
-		if (isOfflineModeEnabled()) {
-			this.authorizedPrivateXenonInferenceModelIds.clear();
-			this.authorizedPrivateXenonInferenceTeamId = undefined;
-			return;
-		}
-
-		let authorizedIds: Set<string> | undefined;
-		try {
-			authorizedIds = await fetchAuthorizedPrivateXenonInferenceModelIds(apiKey, teamHeaders);
-		} catch {
-			// Fall back to the previous authorization below.
-		}
-		// Leave newer state untouched if the credentials changed while fetching.
-		if ((await this.currentPrivateXenonAuthorizationFingerprint()) !== fingerprint) {
-			return;
-		}
-		if (authorizedIds) {
-			this.authorizedPrivateXenonInferenceModelIds = authorizedIds;
-			this.authorizedPrivateXenonInferenceTeamId = teamId;
-			this.writePrivateXenonAuthorizationCache({ fingerprint, modelIds: authorizedIds, refreshedAt: Date.now() });
-		} else if (teamId === previousTeamId) {
-			this.authorizedPrivateXenonInferenceModelIds = previousPrivateModelIds;
-			this.authorizedPrivateXenonInferenceTeamId = teamId;
-		} else {
-			this.authorizedPrivateXenonInferenceModelIds.clear();
-			this.authorizedPrivateXenonInferenceTeamId = undefined;
-		}
-	}
-
-	/**
-	 * Stale cache hits refresh in the background; failures keep the cached ids.
-	 * Refreshes for the same credentials are deduped, a changed-credentials
-	 * refresh is queued after the in-flight one, and a result is only applied
-	 * if the credentials it was fetched with are still current.
-	 */
-	private startBackgroundPrivateXenonAuthorizationRefresh(
-		apiKey: string,
-		teamHeaders: Record<string, string>,
-		teamId: string,
-		fingerprint: string,
-	): void {
-		if (this.backgroundPrivateXenonAuthorization?.fingerprint === fingerprint) {
-			return;
-		}
-		const run = async () => {
-			try {
-				const authorizedIds = await fetchAuthorizedPrivateXenonInferenceModelIds(
-					apiKey,
-					teamHeaders,
-					undefined,
-					PRIVATE_XENON_BACKGROUND_REFRESH_TIMEOUT_MS,
-				);
-				if ((await this.currentPrivateXenonAuthorizationFingerprint()) !== fingerprint) {
-					return;
-				}
-				this.authorizedPrivateXenonInferenceModelIds = authorizedIds;
-				this.authorizedPrivateXenonInferenceTeamId = teamId;
-				this.writePrivateXenonAuthorizationCache({ fingerprint, modelIds: authorizedIds, refreshedAt: Date.now() });
-			} catch {
-				// Keep the cached authorization.
-			}
-		};
-		const pending = this.backgroundPrivateXenonAuthorization?.promise;
-		const promise = (pending ?? Promise.resolve()).then(run);
-		this.backgroundPrivateXenonAuthorization = { fingerprint, promise };
-		void promise.finally(() => {
-			if (this.backgroundPrivateXenonAuthorization?.promise === promise) {
-				this.backgroundPrivateXenonAuthorization = undefined;
-			}
-		});
-	}
-
-	private async currentPrivateXenonAuthorizationFingerprint(): Promise<string | undefined> {
-		const apiKey = await this.authStorage.getApiKey(XENON_INFERENCE_PROVIDER_ID);
-		const teamId = this.authStorage.getProviderHeaders(XENON_INFERENCE_PROVIDER_ID)?.["X-Xenon-Team-ID"];
-		return apiKey && teamId ? privateXenonAuthorizationFingerprint(apiKey, teamId) : undefined;
-	}
-
-	private privateXenonAuthorizationCachePath(): string | undefined {
-		if (!this.modelsJsonPath) {
-			return undefined;
-		}
-		return join(dirname(this.modelsJsonPath), PRIVATE_XENON_AUTHORIZATION_CACHE_FILE);
-	}
-
-	private readPrivateXenonAuthorizationCache(): PrivateXenonAuthorizationCache | undefined {
-		const cachePath = this.privateXenonAuthorizationCachePath();
-		if (!cachePath) {
-			return undefined;
-		}
-		try {
-			const parsed = JSON.parse(readFileSync(cachePath, "utf8")) as Partial<
-				Omit<PrivateXenonAuthorizationCache, "modelIds"> & { modelIds: string[] }
-			>;
-			if (
-				typeof parsed.fingerprint !== "string" ||
-				!Array.isArray(parsed.modelIds) ||
-				typeof parsed.refreshedAt !== "number"
-			) {
-				return undefined;
-			}
-			return {
-				fingerprint: parsed.fingerprint,
-				modelIds: new Set(parsed.modelIds),
-				refreshedAt: parsed.refreshedAt,
-			};
-		} catch {
-			return undefined;
-		}
-	}
-
-	private writePrivateXenonAuthorizationCache(cache: PrivateXenonAuthorizationCache): void {
-		const cachePath = this.privateXenonAuthorizationCachePath();
-		if (!cachePath) {
-			return;
-		}
-		try {
-			const tmpPath = `${cachePath}.${process.pid}.tmp`;
-			writeFileSync(tmpPath, JSON.stringify({ ...cache, modelIds: [...cache.modelIds] }), { mode: 0o600 });
-			renameSync(tmpPath, cachePath);
-		} catch {
-			// A failed cache write only requires a later refetch.
-		}
 	}
 
 	async refreshModelCatalog(): Promise<ModelCatalogSnapshot> {
 		const availableModels = await this.refreshAvailableModels();
-		const availablePrivateModels = new Set(
-			availableModels.filter(isPrivateXenonInferenceModel).map((model) => `${model.provider}/${model.id}`),
-		);
 		return {
-			models: this.models.filter(
-				(model) =>
-					!isPrivateXenonInferenceModel(model) || availablePrivateModels.has(`${model.provider}/${model.id}`),
-			),
+			models: this.models,
 			configuredProviders: [...new Set(availableModels.map((model) => model.provider))],
 		};
 	}
 
 	async canUseModel(model: Model<Api>): Promise<boolean> {
-		if (!this.hasConfiguredAuth(model)) {
-			return false;
-		}
-		if (!isPrivateXenonInferenceModel(model)) {
-			return true;
-		}
-
-		const availableModels = await this.refreshAvailableModels();
-		return availableModels.some((candidate) => candidate.provider === model.provider && candidate.id === model.id);
+		return Promise.resolve(this.hasConfiguredAuth(model));
 	}
 
 	async getExecutableModels(): Promise<Model<Api>[]> {
-		await this.refreshPrivateXenonInferenceAuthorization();
 		const availableModels = this.getAvailable();
 		const codexModels = availableModels.filter((model) => model.provider === "openai-codex");
 		if (codexModels.length === 0) {
@@ -1012,7 +893,29 @@ export class ModelRegistry {
 	 * Find a model by provider and ID.
 	 */
 	find(provider: string, modelId: string): Model<Api> | undefined {
-		return this.models.find((m) => m.provider === provider && m.id === modelId);
+		const direct = this.models.find((m) => m.provider === provider && m.id === modelId);
+		if (direct) {
+			return direct;
+		}
+		const providerConfig = this.providerRequestConfigs.get(provider);
+		const providerModel = this.models.find((m) => m.provider === provider);
+		if (providerConfig?.baseUrl || providerModel) {
+			const api = (providerConfig?.api ?? providerModel?.api ?? "openai-completions") as Api;
+			const baseUrl = providerConfig?.baseUrl ?? providerModel?.baseUrl ?? "";
+			return {
+				id: modelId,
+				name: modelId,
+				api,
+				provider,
+				baseUrl,
+				reasoning: false,
+				input: ["text", "image"],
+				cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+				contextWindow: 128000,
+				maxTokens: 16384,
+			};
+		}
+		return undefined;
 	}
 
 	/**
@@ -1261,19 +1164,25 @@ export class ModelRegistry {
 	private storeProviderRequestConfig(
 		providerName: string,
 		config: {
+			baseUrl?: string;
 			apiKey?: string;
+			api?: Api;
 			headers?: Record<string, string>;
 			authHeader?: boolean;
+			compat?: Model<Api>["compat"];
 		},
 	): void {
-		if (!config.apiKey && !config.headers && !config.authHeader) {
+		if (!config.baseUrl && !config.apiKey && !config.headers && !config.authHeader && !config.api) {
 			return;
 		}
 
 		this.providerRequestConfigs.set(providerName, {
+			baseUrl: config.baseUrl,
 			apiKey: config.apiKey,
+			api: config.api,
 			headers: config.headers,
 			authHeader: config.authHeader,
+			compat: config.compat,
 		});
 	}
 

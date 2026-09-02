@@ -74,7 +74,7 @@ For each built-in provider, Xenon Agent maintains a list of tool-capable models,
 **API keys:**
 - Anthropic
 - OpenAI
-- Xenon Inference
+- NVIDIA NIM
 - Azure OpenAI
 - DeepSeek
 - Google Gemini

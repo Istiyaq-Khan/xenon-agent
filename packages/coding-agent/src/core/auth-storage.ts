@@ -20,29 +20,10 @@ import { dirname, join } from "path";
 import lockfile from "proper-lockfile";
 import { getAgentDir } from "../config.js";
 import { resolveConfigValue, resolveConfigValueUncached } from "./resolve-config-value.js";
-import {
-	clearXenonCliCredentials,
-	getXenonCliConfigPath,
-	loadXenonCliConfig,
-	saveXenonCliApiKey,
-	saveXenonCliTeamSelection,
-	XENON_INFERENCE_PROVIDER_ID,
-	type XenonCliConfig,
-	type XenonTeam,
-} from "./xenon-inference-auth.js";
-
-export type XenonTeamCredential = {
-	teamId: string;
-	name: string;
-	slug?: string;
-	role?: string;
-	createdAt?: string;
-};
 
 export type ApiKeyCredential = {
 	type: "api_key";
 	key: string;
-	xenonTeam?: XenonTeamCredential | null;
 };
 
 export type OAuthCredential = {
@@ -55,15 +36,7 @@ export type AuthStorageData = Record<string, AuthCredential>;
 
 export type AuthStatus = {
 	configured: boolean;
-	source?:
-		| "stored"
-		| "runtime"
-		| "environment"
-		| "xenon_cli"
-		| "fallback"
-		| "models_json_key"
-		| "models_json_command"
-		| "stale";
+	source?: "stored" | "runtime" | "environment" | "fallback" | "models_json_key" | "models_json_command" | "stale";
 	label?: string;
 };
 
@@ -254,7 +227,7 @@ export class AuthStorage {
 
 	private constructor(
 		private storage: AuthStorageBackend,
-		private options: AuthStorageOptions = {},
+		_options: AuthStorageOptions = {},
 	) {
 		this.reload();
 	}
@@ -375,22 +348,6 @@ export class AuthStorage {
 		};
 	}
 
-	private getXenonCliAuthCandidate(provider: string): AuthSourceCandidate | undefined {
-		const apiKey = this.getXenonCliApiKey(provider);
-		if (!apiKey) {
-			return undefined;
-		}
-		return {
-			label: "Xenon CLI",
-			...this.createAuthSourceCandidate({
-				configured: false,
-				source: "xenon_cli",
-				identityMaterial: provider,
-				valueMaterial: apiKey,
-			}),
-		};
-	}
-
 	private getStoredAuthCandidate(
 		provider: string,
 		options?: { resolveCommandValue?: boolean; resolvedCommandValue?: string },
@@ -483,21 +440,12 @@ export class AuthStorage {
 	private getAuthSourceCandidates(provider: string, options?: { includeFallback?: boolean }): AuthSourceCandidate[] {
 		const fallbackCandidate =
 			options?.includeFallback === false ? undefined : this.getFallbackAuthCandidate(provider);
-		const candidates =
-			provider === XENON_INFERENCE_PROVIDER_ID
-				? [
-						this.getRuntimeAuthCandidate(provider),
-						this.getEnvironmentAuthCandidate(provider),
-						this.getXenonCliAuthCandidate(provider),
-						this.getStoredAuthCandidate(provider),
-						fallbackCandidate,
-					]
-				: [
-						this.getRuntimeAuthCandidate(provider),
-						this.getStoredAuthCandidate(provider),
-						this.getEnvironmentAuthCandidate(provider),
-						fallbackCandidate,
-					];
+		const candidates = [
+			this.getRuntimeAuthCandidate(provider),
+			this.getStoredAuthCandidate(provider),
+			this.getEnvironmentAuthCandidate(provider),
+			fallbackCandidate,
+		];
 		return candidates.filter((candidate): candidate is AuthSourceCandidate => candidate !== undefined);
 	}
 
@@ -764,15 +712,6 @@ export class AuthStorage {
 	 * Logout from a provider.
 	 */
 	logout(provider: string): void {
-		if (provider === XENON_INFERENCE_PROVIDER_ID && this.isXenonCliConfigEnabled()) {
-			try {
-				clearXenonCliCredentials(this.getEnabledXenonCliConfigPath());
-				this.clearStaleAuthSource(provider, "xenon_cli");
-			} catch (error) {
-				this.recordError(error);
-				throw error;
-			}
-		}
 		this.remove(provider);
 	}
 
@@ -848,31 +787,6 @@ export class AuthStorage {
 			};
 		}
 
-		const envCandidate = this.getEnvironmentAuthCandidate(providerId);
-		const envKey = getEnvApiKey(providerId);
-		if (
-			providerId === XENON_INFERENCE_PROVIDER_ID &&
-			envKey &&
-			envCandidate &&
-			!this.isAuthSourceStale(providerId, envCandidate)
-		) {
-			return {
-				apiKey: envKey,
-				sourceToken: this.getAuthSourceTokenForCandidate(providerId, envCandidate),
-			};
-		}
-
-		if (providerId === XENON_INFERENCE_PROVIDER_ID) {
-			const xenonCliCandidate = this.getXenonCliAuthCandidate(providerId);
-			const xenonCliKey = this.getXenonCliApiKey(providerId);
-			if (xenonCliKey && xenonCliCandidate && !this.isAuthSourceStale(providerId, xenonCliCandidate)) {
-				return {
-					apiKey: xenonCliKey,
-					sourceToken: this.getAuthSourceTokenForCandidate(providerId, xenonCliCandidate),
-				};
-			}
-		}
-
 		const cred = this.data[providerId];
 
 		if (cred?.type === "api_key") {
@@ -946,13 +860,10 @@ export class AuthStorage {
 				}
 			}
 		}
-		// Stored auth wins over environment variables for non-Xenon-Inference providers.
-		if (
-			providerId !== XENON_INFERENCE_PROVIDER_ID &&
-			envKey &&
-			envCandidate &&
-			!this.isAuthSourceStale(providerId, envCandidate)
-		) {
+
+		const envCandidate = this.getEnvironmentAuthCandidate(providerId);
+		const envKey = getEnvApiKey(providerId);
+		if (envKey && envCandidate && !this.isAuthSourceStale(providerId, envCandidate)) {
 			return {
 				apiKey: envKey,
 				sourceToken: this.getAuthSourceTokenForCandidate(providerId, envCandidate),
@@ -983,163 +894,7 @@ export class AuthStorage {
 		return getOAuthProviders();
 	}
 
-	setXenonInferenceTeamSelection(team: XenonTeam | null): void {
-		if (this.isXenonCliConfigEnabled()) {
-			try {
-				saveXenonCliTeamSelection(team, this.getEnabledXenonCliConfigPath());
-			} catch (error) {
-				this.recordError(error);
-				throw error;
-			}
-			return;
-		}
-
-		const credential = this.data[XENON_INFERENCE_PROVIDER_ID];
-		if (credential?.type !== "api_key") {
-			return;
-		}
-		this.set(XENON_INFERENCE_PROVIDER_ID, {
-			...credential,
-			xenonTeam: team ? this.toXenonTeamCredential(team) : null,
-		});
-	}
-
-	setXenonInferenceApiKey(apiKey: string): void {
-		if (this.isXenonCliConfigEnabled()) {
-			try {
-				const configPath = this.getEnabledXenonCliConfigPath();
-				const config = loadXenonCliConfig(configPath);
-				const existingCredential = this.data[XENON_INFERENCE_PROVIDER_ID];
-				const legacyXenonTeam = existingCredential?.type === "api_key" ? existingCredential.xenonTeam : undefined;
-				if (config.apiKey !== apiKey) {
-					saveXenonCliApiKey(apiKey, configPath);
-				} else if (!config.teamIdFromEnv && (legacyXenonTeam === null || (!config.teamId && legacyXenonTeam))) {
-					saveXenonCliTeamSelection(legacyXenonTeam, configPath);
-				}
-				this.clearStaleAuthSource(XENON_INFERENCE_PROVIDER_ID, "xenon_cli");
-			} catch (error) {
-				this.recordError(error);
-				throw error;
-			}
-			if (this.data[XENON_INFERENCE_PROVIDER_ID]) {
-				this.remove(XENON_INFERENCE_PROVIDER_ID);
-			}
-			return;
-		}
-
-		const existingCredential = this.data[XENON_INFERENCE_PROVIDER_ID];
-		const existingXenonTeam = existingCredential?.type === "api_key" ? existingCredential.xenonTeam : undefined;
-		this.set(XENON_INFERENCE_PROVIDER_ID, {
-			type: "api_key",
-			key: apiKey,
-			...(existingXenonTeam !== undefined ? { xenonTeam: existingXenonTeam } : {}),
-		});
-	}
-
-	getXenonInferenceTeamSelection(): XenonTeamCredential | null | undefined {
-		let config: XenonCliConfig | undefined;
-		if (this.isXenonCliConfigEnabled()) {
-			config = this.getXenonCliConfig(XENON_INFERENCE_PROVIDER_ID);
-			if (config?.teamIdFromEnv) {
-				return undefined;
-			}
-		}
-
-		const credential = this.data[XENON_INFERENCE_PROVIDER_ID];
-		const authSource = this.getAuthStatus(XENON_INFERENCE_PROVIDER_ID).source;
-		if (authSource === "runtime" || authSource === "environment") {
-			return undefined;
-		}
-		if (authSource === "xenon_cli") {
-			if (credential?.type === "api_key" && credential.xenonTeam === null) {
-				return null;
-			}
-			if (config?.teamId) {
-				return this.toXenonTeamCredential({
-					teamId: config.teamId,
-					name: config.teamName ?? "Xenon CLI team",
-					...(config.teamRole ? { role: config.teamRole } : {}),
-				});
-			}
-			if (credential?.type === "api_key" && credential.xenonTeam) {
-				return credential.xenonTeam;
-			}
-			return null;
-		}
-		if (credential?.type === "api_key" && credential.xenonTeam !== undefined) {
-			return credential.xenonTeam;
-		}
-		if (!config?.apiKey && config?.teamId) {
-			return this.toXenonTeamCredential({
-				teamId: config.teamId,
-				name: config.teamName ?? "Xenon CLI team",
-				...(config.teamRole ? { role: config.teamRole } : {}),
-			});
-		}
+	getProviderHeaders(_providerId: string): Record<string, string> | undefined {
 		return undefined;
-	}
-
-	getProviderHeaders(providerId: string): Record<string, string> | undefined {
-		if (providerId !== XENON_INFERENCE_PROVIDER_ID) {
-			return undefined;
-		}
-
-		const xenonCliConfig = this.getXenonCliConfig(providerId);
-		if (xenonCliConfig?.teamIdFromEnv) {
-			return xenonCliConfig.teamId ? { "X-Xenon-Team-ID": xenonCliConfig.teamId } : undefined;
-		}
-
-		const teamId = this.getXenonInferenceTeamSelection()?.teamId;
-		return teamId ? { "X-Xenon-Team-ID": teamId } : undefined;
-	}
-
-	getXenonCliConfigPath(): string | undefined {
-		if (!this.isXenonCliConfigEnabled()) {
-			return undefined;
-		}
-		return getXenonCliConfigPath(this.options.xenonCliConfigPath);
-	}
-
-	private toXenonTeamCredential(team: XenonTeam): XenonTeamCredential {
-		const credential: XenonTeamCredential = {
-			teamId: team.teamId,
-			name: team.name,
-		};
-		if (team.slug) {
-			credential.slug = team.slug;
-		}
-		if (team.role) {
-			credential.role = team.role;
-		}
-		if (team.createdAt) {
-			credential.createdAt = team.createdAt;
-		}
-		return credential;
-	}
-
-	private getXenonCliConfig(providerId: string): XenonCliConfig | undefined {
-		if (providerId !== XENON_INFERENCE_PROVIDER_ID) {
-			return undefined;
-		}
-		if (!this.isXenonCliConfigEnabled()) {
-			return undefined;
-		}
-		return loadXenonCliConfig(this.options.xenonCliConfigPath);
-	}
-
-	private getXenonCliApiKey(providerId: string): string | undefined {
-		return this.getXenonCliConfig(providerId)?.apiKey;
-	}
-
-	private getEnabledXenonCliConfigPath(): string {
-		const configPath = this.getXenonCliConfigPath();
-		if (!configPath) {
-			throw new Error("Xenon CLI config is not enabled");
-		}
-		return configPath;
-	}
-
-	private isXenonCliConfigEnabled(): boolean {
-		return Boolean(this.options.useXenonCliConfig || this.options.xenonCliConfigPath);
 	}
 }

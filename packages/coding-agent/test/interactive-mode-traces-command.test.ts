@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AgentTraceUploadAllResult, AgentTraceUploadResult } from "../src/core/agent-traces.js";
 import { AuthStorage } from "../src/core/auth-storage.js";
-import { XENON_AGENT_TRACES_PROVIDER_ID } from "../src/core/xenon-inference-auth.js";
 import { InteractiveMode } from "../src/modes/interactive/interactive-mode.js";
+
+const XENON_AGENT_TRACES_PROVIDER_ID = "xenon-agent-traces";
 
 interface TracesCommandContext {
 	traceUploadAllAbortController?: AbortController;

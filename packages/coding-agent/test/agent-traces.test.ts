@@ -16,7 +16,8 @@ import {
 import { AuthStorage } from "../src/core/auth-storage.js";
 import { SessionManager } from "../src/core/session-manager.js";
 import { SettingsManager } from "../src/core/settings-manager.js";
-import { XENON_AGENT_TRACES_PROVIDER_ID, XENON_INFERENCE_PROVIDER_ID } from "../src/core/xenon-inference-auth.js";
+
+const XENON_AGENT_TRACES_PROVIDER_ID = "xenon-agent-traces";
 
 interface FetchCall {
 	url: string;
@@ -1026,28 +1027,5 @@ describe("agent trace upload", () => {
 		expect(attempts).toBe(2);
 		expect(result).toMatchObject({ total: 3, uploaded: 0, failed: 0, skipped: 3 });
 		expect(result.results).toHaveLength(0);
-	});
-
-	it("prefers the xenon-inference credential over the xenon-cli config key", async () => {
-		const session = writeSession(tempDir, join(tempDir, "sessions"), "credential-order-session");
-		const calls: FetchCall[] = [];
-		const configPath = join(tempDir, "xenon-config.json");
-		writeFileSync(configPath, JSON.stringify({ api_key: "cli-fallback-key" }));
-
-		const result = await uploadAgentTraceFile({
-			sessionFile: session.getSessionFile(),
-			authStorage: AuthStorage.inMemory({
-				[XENON_INFERENCE_PROVIDER_ID]: { type: "api_key", key: "inference-key" },
-			}),
-			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
-			baseUrl: "https://api.example.test",
-			configPath,
-			fetchFn: createFetchRecorder(calls),
-			reloadConfig: false,
-		});
-
-		expect(result.status).toBe("uploaded");
-		expect(calls).toHaveLength(1);
-		expect(calls[0]?.init.headers).toMatchObject({ Authorization: "Bearer inference-key" });
 	});
 });

@@ -18,6 +18,7 @@ See these complete provider examples:
 
 - [Example Extensions](#example-extensions)
 - [Quick Reference](#quick-reference)
+- [Configuration via Settings](#configuration-via-settings)
 - [Override Existing Provider](#override-existing-provider)
 - [Register New Provider](#register-new-provider)
 - [Unregister Provider](#unregister-provider)
@@ -26,6 +27,39 @@ See these complete provider examples:
 - [Testing Your Implementation](#testing-your-implementation)
 - [Config Reference](#config-reference)
 - [Model Definition Reference](#model-definition-reference)
+
+## Configuration via Settings
+
+You can declare custom providers directly in `~/.xenon-agent/settings.json` or `.xenon/config.json` under `customProviders`:
+
+```json
+{
+  "customProviders": {
+    "local-vllm": {
+      "name": "Local vLLM",
+      "baseUrl": "http://localhost:8000/v1",
+      "protocol": "openai-compatible",
+      "apiKeyEnv": "LOCAL_VLLM_API_KEY",
+      "models": [
+        {
+          "id": "qwen2.5-coder-32b",
+          "name": "Qwen 2.5 Coder 32B",
+          "contextWindow": 32768,
+          "maxTokens": 8192
+        }
+      ]
+    },
+    "custom-anthropic-proxy": {
+      "name": "Corporate Claude Proxy",
+      "baseUrl": "https://ai-proxy.corp.internal/v1",
+      "protocol": "anthropic-compatible",
+      "apiKey": "sk-corp-..."
+    }
+  }
+}
+```
+
+Supported protocols include `openai-compatible` (or `openai-completions`) and `anthropic-compatible` (or `anthropic-messages`). If models are omitted, models are dynamically resolved on demand when requested.
 
 ## Quick Reference
 
