@@ -55,14 +55,14 @@ describe("ModelSelectorComponent", () => {
 			() => {},
 			undefined,
 			{
-				subtitle: "Choose a Prime model, or add another provider.",
+				subtitle: "Choose a Xenon model, or add another provider.",
 			},
 		);
 
 		await waitForAsyncRender();
 
 		const output = stripAnsi(selector.render(120).join("\n"));
-		expect(output).toContain("Choose a Prime model, or add another provider.");
+		expect(output).toContain("Choose a Xenon model, or add another provider.");
 		expect(output).toContain("Signed-in providers first.");
 		expect(output).not.toContain("opens providers");
 
@@ -207,11 +207,11 @@ describe("ModelSelectorComponent", () => {
 		harnesses.push(harness);
 
 		const base = harness.getModel("base")!;
-		const signedInExact = { ...base, provider: "prime-inference", id: "z-ai/glm-5.2", name: "GLM 5.2" };
+		const signedInExact = { ...base, provider: "xenon-inference", id: "z-ai/glm-5.2", name: "GLM 5.2" };
 		const signedOutExact = { ...base, provider: "opencode", id: "glm-5.2", name: "GLM 5.2" };
 		const signedInFuzzy = {
 			...base,
-			provider: "prime-inference",
+			provider: "xenon-inference",
 			id: "glorious-language-model-5.2",
 			name: "Glorious Language Model 5.2",
 		};
@@ -225,7 +225,7 @@ describe("ModelSelectorComponent", () => {
 			"glm5.2",
 			{
 				availableModels: [signedInFuzzy, signedOutExact, signedInExact],
-				configuredProviders: new Set(["prime-inference"]),
+				configuredProviders: new Set(["xenon-inference"]),
 			},
 		);
 
@@ -248,8 +248,8 @@ describe("ModelSelectorComponent", () => {
 
 		const base = harness.getModel("base")!;
 		const exact = { ...base, provider: "openai", id: "gpt-5", name: "GPT-5" };
-		const prefix = { ...base, provider: "prime-inference", id: "openai-gpt-5-preview", name: "GPT-5 Preview" };
-		const fuzzy = { ...base, provider: "prime-inference", id: "other-openai-gpt-5", name: "Other GPT-5" };
+		const prefix = { ...base, provider: "xenon-inference", id: "openai-gpt-5-preview", name: "GPT-5 Preview" };
+		const fuzzy = { ...base, provider: "xenon-inference", id: "other-openai-gpt-5", name: "Other GPT-5" };
 		const selector = new ModelSelectorComponent(
 			createFakeTui(),
 			undefined,
@@ -260,7 +260,7 @@ describe("ModelSelectorComponent", () => {
 			"openai/gpt5",
 			{
 				availableModels: [fuzzy, prefix, exact],
-				configuredProviders: new Set(["prime-inference"]),
+				configuredProviders: new Set(["xenon-inference"]),
 			},
 		);
 

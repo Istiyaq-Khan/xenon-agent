@@ -77,13 +77,16 @@ export interface ExecuteOptions {
 }
 
 /** MIME tag the `edit` skill emits diff payloads under. */
-export const DIFF_DISPLAY_MIME = "application/vnd.prime-agent.diff+json";
+export const DIFF_DISPLAY_MIME = "application/vnd.xenon-agent.diff+json";
+export const LEGACY_DIFF_DISPLAY_MIME = "application/vnd.xenon-agent.diff+json";
 
 /** MIME tag the `attach-image` skill emits media payloads under. */
-export const ATTACHMENT_DISPLAY_MIME = "application/vnd.prime-agent.attachment+json";
+export const ATTACHMENT_DISPLAY_MIME = "application/vnd.xenon-agent.attachment+json";
+export const LEGACY_ATTACHMENT_DISPLAY_MIME = "application/vnd.xenon-agent.attachment+json";
 
 /** MIME tag the `agent-message` skill emits after sending a message. */
-export const AGENT_MESSAGE_DISPLAY_MIME = "application/vnd.prime-agent.agent-message+json";
+export const AGENT_MESSAGE_DISPLAY_MIME = "application/vnd.xenon-agent.agent-message+json";
+export const LEGACY_AGENT_MESSAGE_DISPLAY_MIME = "application/vnd.xenon-agent.agent-message+json";
 
 /**
  * Hard ceiling on a single attachment's base64 payload, a defensive guard

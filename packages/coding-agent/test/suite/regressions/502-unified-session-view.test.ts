@@ -483,7 +483,7 @@ describe("#502 unified session view regressions", () => {
 				...summary("effort-child"),
 				runtimeKind: "subagent" as const,
 				summary: "Investigate a variable background status that can be truncated",
-				model: { provider: "prime-inference", id: "gpt-5.6-terra" } as SessionSummary["model"],
+				model: { provider: "xenon-inference", id: "gpt-5.6-terra" } as SessionSummary["model"],
 				thinkingLevel: "high" as SessionSummary["thinkingLevel"],
 			} as SessionSummary,
 			title: "Inspect agents view",
@@ -514,23 +514,23 @@ describe("#502 unified session view regressions", () => {
 
 		const full = render(120);
 		expect(full).toContain(
-			"Inspect agents view · prime-inference/gpt-5.6-terra:high · Investigate a variable background status",
+			"Inspect agents view · xenon-inference/gpt-5.6-terra:high · Investigate a variable background status",
 		);
 		const narrow = render(75);
-		expect(narrow).toContain("prime-inference/gpt-5.6-terra:high");
+		expect(narrow).toContain("xenon-inference/gpt-5.6-terra:high");
 		expect(narrow).not.toContain("Investigate a variable background status");
 
 		subagent.summary.summary = "";
-		expect(render(100)).toContain("Inspect agents view · prime-inference/gpt-5.6-terra:high");
+		expect(render(100)).toContain("Inspect agents view · xenon-inference/gpt-5.6-terra:high");
 
 		// Older daemons identify subagents through persisted linkage instead of runtimeKind.
 		subagent.summary.runtimeKind = undefined;
 		subagent.summary.rlmChildId = "effort-child";
-		expect(render(100)).toContain("Inspect agents view · prime-inference/gpt-5.6-terra:high");
+		expect(render(100)).toContain("Inspect agents view · xenon-inference/gpt-5.6-terra:high");
 
 		subagent.summary.thinkingLevel = "off";
 		subagent.summary.summary = "A later summary";
-		expect(render(100)).toContain("Inspect agents view · prime-inference/gpt-5.6-terra · A later summary");
+		expect(render(100)).toContain("Inspect agents view · xenon-inference/gpt-5.6-terra · A later summary");
 		expect(render(100)).not.toContain(":off");
 
 		expect(render(20)).toHaveLength(20);

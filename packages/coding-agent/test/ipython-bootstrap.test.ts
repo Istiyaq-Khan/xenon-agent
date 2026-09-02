@@ -20,12 +20,12 @@ describe("RLM bootstrap", () => {
 	});
 
 	it("disables colored output for subprocesses launched by the kernel", () => {
-		expect(buildRlmBootstrapCode()).toContain('_prime_agent_os.environ["NO_COLOR"] = "1"');
+		expect(buildRlmBootstrapCode()).toContain('_xenon_agent_os.environ["NO_COLOR"] = "1"');
 	});
 
 	it("binds bash from the runtime with a missing-runtime stub fallback", () => {
 		const code = buildRlmBootstrapCode();
-		expect(code).toContain("bash = _prime_agent_rlm_module.bash");
+		expect(code).toContain("bash = _xenon_agent_rlm_module.bash");
 		expect(code).toContain("def bash(command):");
 		expect(code).toContain("rlm._raise_missing()");
 	});
@@ -44,19 +44,22 @@ describe("RLM bootstrap", () => {
 			},
 		]);
 
-		expect(code).toContain("except Exception as _prime_agent_skill_error");
-		expect(code).toContain("_PrimeAgentUnavailableSkill");
-		expect(code).toContain("_PRIME_AGENT_SKILL_IMPORT_ERRORS");
-		expect(code).toContain("globals()[_prime_agent_skill_name] = _PrimeAgentUnavailableSkill");
+		expect(code).toContain("except Exception as _xenon_agent_skill_error");
+		expect(code).toContain("_XenonAgentUnavailableSkill");
+		expect(code).toContain("_XENON_AGENT_SKILL_IMPORT_ERRORS");
+		expect(code).toContain("globals()[_xenon_agent_skill_name] = _XenonAgentUnavailableSkill");
 	});
 });
 
 /** Find a python with a current rlm runtime, or null to skip. */
 function resolveKernelPython(): string | null {
 	const candidates = [
-		process.env.PRIME_AGENT_KERNEL_PYTHON,
-		resolve(__dirname, "..", "..", "..", "prime-agent-runtime", ".venv", "bin", "python"),
-		join(homedir(), ".prime", "agent", "kernel-venv", "bin", "python"),
+		process.env.XENON_AGENT_KERNEL_PYTHON,
+		process.env.XENON_AGENT_KERNEL_PYTHON,
+		resolve(__dirname, "..", "..", "..", "xenon-agent-runtime", ".venv", "bin", "python"),
+		resolve(__dirname, "..", "..", "..", "xenon-agent-runtime", ".venv", "bin", "python"),
+		join(homedir(), ".xenon-agent", "kernel-venv", "bin", "python"),
+		join(homedir(), ".xenon", "agent", "kernel-venv", "bin", "python"),
 	].filter((p): p is string => Boolean(p));
 	for (const python of candidates) {
 		if (!existsSync(python)) continue;
@@ -72,7 +75,7 @@ const python = resolveKernelPython();
 const describeIfKernel = python ? describe : describe.skip;
 
 describeIfKernel("RLM bootstrap (real kernel)", () => {
-	const dir = mkdtempSync(join(tmpdir(), "prime-agent-bootstrap-"));
+	const dir = mkdtempSync(join(tmpdir(), "xenon-agent-bootstrap-"));
 
 	afterAll(() => {
 		rmSync(dir, { recursive: true, force: true });

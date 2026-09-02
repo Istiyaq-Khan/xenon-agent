@@ -4057,7 +4057,7 @@ describe("AgentSession RLM session dir", () => {
 		const root = createSession(SessionManager.inMemory(tempDir));
 		const inspectable = root as unknown as InspectableRlmDirSession;
 
-		const before = readdirSync(tmpdir()).filter((name) => name.startsWith("prime-agent-rlm-"));
+		const before = readdirSync(tmpdir()).filter((name) => name.startsWith("xenon-agent-rlm-"));
 
 		expect(inspectable._ensureRlmSessionDir()).toBeUndefined();
 		const env = inspectable._rlmKernelEnv();
@@ -4066,7 +4066,7 @@ describe("AgentSession RLM session dir", () => {
 		expect(env.RLM_GLOBAL_HARNESS_STATE_DIR).toBeDefined();
 		expect(env).toMatchObject({ RLM_DEPTH: "0" });
 
-		const after = readdirSync(tmpdir()).filter((name) => name.startsWith("prime-agent-rlm-"));
+		const after = readdirSync(tmpdir()).filter((name) => name.startsWith("xenon-agent-rlm-"));
 		expect(after).toEqual(before);
 	});
 
@@ -4154,20 +4154,20 @@ describe("AgentSession RLM session dir", () => {
 		const agentDir = join(tempDir, "custom-agent-dir");
 		const root = createSession(SessionManager.inMemory(tempDir), agentDir);
 		const env = (root as unknown as InspectableRlmDirSession)._rlmKernelEnv();
-		expect(env.PRIME_AGENT_CODING_AGENT_DIR).toBe(agentDir);
+		expect(env.XENON_AGENT_CODING_AGENT_DIR).toBe(agentDir);
 	});
 
 	it("omits the agentDir env var when none is configured", () => {
 		const root = createSession(SessionManager.inMemory(tempDir));
 		const env = (root as unknown as InspectableRlmDirSession)._rlmKernelEnv();
-		expect(env.PRIME_AGENT_CODING_AGENT_DIR).toBeUndefined();
+		expect(env.XENON_AGENT_CODING_AGENT_DIR).toBeUndefined();
 	});
 
 	it("exports agentDir but skips key injection when no websearch skill is loaded", () => {
 		const agentDir = join(tempDir, "custom-agent-dir");
 		const root = createSession(SessionManager.inMemory(tempDir), agentDir, "stored-key", false);
 		const env = (root as unknown as InspectableRlmDirSession)._rlmKernelEnv();
-		expect(env.PRIME_AGENT_CODING_AGENT_DIR).toBe(agentDir);
+		expect(env.XENON_AGENT_CODING_AGENT_DIR).toBe(agentDir);
 		expect(env.SERPER_API_KEY).toBeUndefined();
 	});
 

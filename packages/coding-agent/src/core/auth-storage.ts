@@ -19,19 +19,19 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "f
 import { dirname, join } from "path";
 import lockfile from "proper-lockfile";
 import { getAgentDir } from "../config.js";
-import {
-	clearPrimeCliCredentials,
-	getPrimeCliConfigPath,
-	loadPrimeCliConfig,
-	PRIME_INFERENCE_PROVIDER_ID,
-	type PrimeCliConfig,
-	type PrimeTeam,
-	savePrimeCliApiKey,
-	savePrimeCliTeamSelection,
-} from "./prime-inference-auth.js";
 import { resolveConfigValue, resolveConfigValueUncached } from "./resolve-config-value.js";
+import {
+	clearXenonCliCredentials,
+	getXenonCliConfigPath,
+	loadXenonCliConfig,
+	saveXenonCliApiKey,
+	saveXenonCliTeamSelection,
+	XENON_INFERENCE_PROVIDER_ID,
+	type XenonCliConfig,
+	type XenonTeam,
+} from "./xenon-inference-auth.js";
 
-export type PrimeTeamCredential = {
+export type XenonTeamCredential = {
 	teamId: string;
 	name: string;
 	slug?: string;
@@ -42,7 +42,7 @@ export type PrimeTeamCredential = {
 export type ApiKeyCredential = {
 	type: "api_key";
 	key: string;
-	primeTeam?: PrimeTeamCredential | null;
+	xenonTeam?: XenonTeamCredential | null;
 };
 
 export type OAuthCredential = {
@@ -59,7 +59,7 @@ export type AuthStatus = {
 		| "stored"
 		| "runtime"
 		| "environment"
-		| "prime_cli"
+		| "xenon_cli"
 		| "fallback"
 		| "models_json_key"
 		| "models_json_command"
@@ -68,8 +68,8 @@ export type AuthStatus = {
 };
 
 export type AuthStorageOptions = {
-	primeCliConfigPath?: string;
-	usePrimeCliConfig?: boolean;
+	xenonCliConfigPath?: string;
+	useXenonCliConfig?: boolean;
 };
 
 type LockResult<T> = {
@@ -260,7 +260,7 @@ export class AuthStorage {
 	}
 
 	static create(authPath?: string, options?: AuthStorageOptions): AuthStorage {
-		const authOptions = options ?? { usePrimeCliConfig: authPath === undefined };
+		const authOptions = options ?? { useXenonCliConfig: authPath === undefined };
 		return new AuthStorage(new FileAuthStorageBackend(authPath ?? join(getAgentDir(), "auth.json")), authOptions);
 	}
 
@@ -375,16 +375,16 @@ export class AuthStorage {
 		};
 	}
 
-	private getPrimeCliAuthCandidate(provider: string): AuthSourceCandidate | undefined {
-		const apiKey = this.getPrimeCliApiKey(provider);
+	private getXenonCliAuthCandidate(provider: string): AuthSourceCandidate | undefined {
+		const apiKey = this.getXenonCliApiKey(provider);
 		if (!apiKey) {
 			return undefined;
 		}
 		return {
-			label: "Prime CLI",
+			label: "Xenon CLI",
 			...this.createAuthSourceCandidate({
 				configured: false,
-				source: "prime_cli",
+				source: "xenon_cli",
 				identityMaterial: provider,
 				valueMaterial: apiKey,
 			}),
@@ -484,11 +484,11 @@ export class AuthStorage {
 		const fallbackCandidate =
 			options?.includeFallback === false ? undefined : this.getFallbackAuthCandidate(provider);
 		const candidates =
-			provider === PRIME_INFERENCE_PROVIDER_ID
+			provider === XENON_INFERENCE_PROVIDER_ID
 				? [
 						this.getRuntimeAuthCandidate(provider),
 						this.getEnvironmentAuthCandidate(provider),
-						this.getPrimeCliAuthCandidate(provider),
+						this.getXenonCliAuthCandidate(provider),
 						this.getStoredAuthCandidate(provider),
 						fallbackCandidate,
 					]
@@ -764,10 +764,10 @@ export class AuthStorage {
 	 * Logout from a provider.
 	 */
 	logout(provider: string): void {
-		if (provider === PRIME_INFERENCE_PROVIDER_ID && this.isPrimeCliConfigEnabled()) {
+		if (provider === XENON_INFERENCE_PROVIDER_ID && this.isXenonCliConfigEnabled()) {
 			try {
-				clearPrimeCliCredentials(this.getEnabledPrimeCliConfigPath());
-				this.clearStaleAuthSource(provider, "prime_cli");
+				clearXenonCliCredentials(this.getEnabledXenonCliConfigPath());
+				this.clearStaleAuthSource(provider, "xenon_cli");
 			} catch (error) {
 				this.recordError(error);
 				throw error;
@@ -830,7 +830,7 @@ export class AuthStorage {
 	 * Get API key for a provider.
 	 * Priority:
 	 * 1. Runtime override (CLI --api-key)
-	 * 2. Prime Inference: environment variable, Prime CLI config, auth.json
+	 * 2. Xenon Inference: environment variable, Xenon CLI config, auth.json
 	 * 3. Other providers: auth.json, environment variable
 	 * 4. Fallback resolver (models.json custom providers)
 	 */
@@ -851,7 +851,7 @@ export class AuthStorage {
 		const envCandidate = this.getEnvironmentAuthCandidate(providerId);
 		const envKey = getEnvApiKey(providerId);
 		if (
-			providerId === PRIME_INFERENCE_PROVIDER_ID &&
+			providerId === XENON_INFERENCE_PROVIDER_ID &&
 			envKey &&
 			envCandidate &&
 			!this.isAuthSourceStale(providerId, envCandidate)
@@ -862,13 +862,13 @@ export class AuthStorage {
 			};
 		}
 
-		if (providerId === PRIME_INFERENCE_PROVIDER_ID) {
-			const primeCliCandidate = this.getPrimeCliAuthCandidate(providerId);
-			const primeCliKey = this.getPrimeCliApiKey(providerId);
-			if (primeCliKey && primeCliCandidate && !this.isAuthSourceStale(providerId, primeCliCandidate)) {
+		if (providerId === XENON_INFERENCE_PROVIDER_ID) {
+			const xenonCliCandidate = this.getXenonCliAuthCandidate(providerId);
+			const xenonCliKey = this.getXenonCliApiKey(providerId);
+			if (xenonCliKey && xenonCliCandidate && !this.isAuthSourceStale(providerId, xenonCliCandidate)) {
 				return {
-					apiKey: primeCliKey,
-					sourceToken: this.getAuthSourceTokenForCandidate(providerId, primeCliCandidate),
+					apiKey: xenonCliKey,
+					sourceToken: this.getAuthSourceTokenForCandidate(providerId, xenonCliCandidate),
 				};
 			}
 		}
@@ -946,9 +946,9 @@ export class AuthStorage {
 				}
 			}
 		}
-		// Stored auth wins over environment variables for non-Prime-Inference providers.
+		// Stored auth wins over environment variables for non-Xenon-Inference providers.
 		if (
-			providerId !== PRIME_INFERENCE_PROVIDER_ID &&
+			providerId !== XENON_INFERENCE_PROVIDER_ID &&
 			envKey &&
 			envCandidate &&
 			!this.isAuthSourceStale(providerId, envCandidate)
@@ -983,10 +983,10 @@ export class AuthStorage {
 		return getOAuthProviders();
 	}
 
-	setPrimeInferenceTeamSelection(team: PrimeTeam | null): void {
-		if (this.isPrimeCliConfigEnabled()) {
+	setXenonInferenceTeamSelection(team: XenonTeam | null): void {
+		if (this.isXenonCliConfigEnabled()) {
 			try {
-				savePrimeCliTeamSelection(team, this.getEnabledPrimeCliConfigPath());
+				saveXenonCliTeamSelection(team, this.getEnabledXenonCliConfigPath());
 			} catch (error) {
 				this.recordError(error);
 				throw error;
@@ -994,85 +994,85 @@ export class AuthStorage {
 			return;
 		}
 
-		const credential = this.data[PRIME_INFERENCE_PROVIDER_ID];
+		const credential = this.data[XENON_INFERENCE_PROVIDER_ID];
 		if (credential?.type !== "api_key") {
 			return;
 		}
-		this.set(PRIME_INFERENCE_PROVIDER_ID, {
+		this.set(XENON_INFERENCE_PROVIDER_ID, {
 			...credential,
-			primeTeam: team ? this.toPrimeTeamCredential(team) : null,
+			xenonTeam: team ? this.toXenonTeamCredential(team) : null,
 		});
 	}
 
-	setPrimeInferenceApiKey(apiKey: string): void {
-		if (this.isPrimeCliConfigEnabled()) {
+	setXenonInferenceApiKey(apiKey: string): void {
+		if (this.isXenonCliConfigEnabled()) {
 			try {
-				const configPath = this.getEnabledPrimeCliConfigPath();
-				const config = loadPrimeCliConfig(configPath);
-				const existingCredential = this.data[PRIME_INFERENCE_PROVIDER_ID];
-				const legacyPrimeTeam = existingCredential?.type === "api_key" ? existingCredential.primeTeam : undefined;
+				const configPath = this.getEnabledXenonCliConfigPath();
+				const config = loadXenonCliConfig(configPath);
+				const existingCredential = this.data[XENON_INFERENCE_PROVIDER_ID];
+				const legacyXenonTeam = existingCredential?.type === "api_key" ? existingCredential.xenonTeam : undefined;
 				if (config.apiKey !== apiKey) {
-					savePrimeCliApiKey(apiKey, configPath);
-				} else if (!config.teamIdFromEnv && (legacyPrimeTeam === null || (!config.teamId && legacyPrimeTeam))) {
-					savePrimeCliTeamSelection(legacyPrimeTeam, configPath);
+					saveXenonCliApiKey(apiKey, configPath);
+				} else if (!config.teamIdFromEnv && (legacyXenonTeam === null || (!config.teamId && legacyXenonTeam))) {
+					saveXenonCliTeamSelection(legacyXenonTeam, configPath);
 				}
-				this.clearStaleAuthSource(PRIME_INFERENCE_PROVIDER_ID, "prime_cli");
+				this.clearStaleAuthSource(XENON_INFERENCE_PROVIDER_ID, "xenon_cli");
 			} catch (error) {
 				this.recordError(error);
 				throw error;
 			}
-			if (this.data[PRIME_INFERENCE_PROVIDER_ID]) {
-				this.remove(PRIME_INFERENCE_PROVIDER_ID);
+			if (this.data[XENON_INFERENCE_PROVIDER_ID]) {
+				this.remove(XENON_INFERENCE_PROVIDER_ID);
 			}
 			return;
 		}
 
-		const existingCredential = this.data[PRIME_INFERENCE_PROVIDER_ID];
-		const existingPrimeTeam = existingCredential?.type === "api_key" ? existingCredential.primeTeam : undefined;
-		this.set(PRIME_INFERENCE_PROVIDER_ID, {
+		const existingCredential = this.data[XENON_INFERENCE_PROVIDER_ID];
+		const existingXenonTeam = existingCredential?.type === "api_key" ? existingCredential.xenonTeam : undefined;
+		this.set(XENON_INFERENCE_PROVIDER_ID, {
 			type: "api_key",
 			key: apiKey,
-			...(existingPrimeTeam !== undefined ? { primeTeam: existingPrimeTeam } : {}),
+			...(existingXenonTeam !== undefined ? { xenonTeam: existingXenonTeam } : {}),
 		});
 	}
 
-	getPrimeInferenceTeamSelection(): PrimeTeamCredential | null | undefined {
-		let config: PrimeCliConfig | undefined;
-		if (this.isPrimeCliConfigEnabled()) {
-			config = this.getPrimeCliConfig(PRIME_INFERENCE_PROVIDER_ID);
+	getXenonInferenceTeamSelection(): XenonTeamCredential | null | undefined {
+		let config: XenonCliConfig | undefined;
+		if (this.isXenonCliConfigEnabled()) {
+			config = this.getXenonCliConfig(XENON_INFERENCE_PROVIDER_ID);
 			if (config?.teamIdFromEnv) {
 				return undefined;
 			}
 		}
 
-		const credential = this.data[PRIME_INFERENCE_PROVIDER_ID];
-		const authSource = this.getAuthStatus(PRIME_INFERENCE_PROVIDER_ID).source;
+		const credential = this.data[XENON_INFERENCE_PROVIDER_ID];
+		const authSource = this.getAuthStatus(XENON_INFERENCE_PROVIDER_ID).source;
 		if (authSource === "runtime" || authSource === "environment") {
 			return undefined;
 		}
-		if (authSource === "prime_cli") {
-			if (credential?.type === "api_key" && credential.primeTeam === null) {
+		if (authSource === "xenon_cli") {
+			if (credential?.type === "api_key" && credential.xenonTeam === null) {
 				return null;
 			}
 			if (config?.teamId) {
-				return this.toPrimeTeamCredential({
+				return this.toXenonTeamCredential({
 					teamId: config.teamId,
-					name: config.teamName ?? "Prime CLI team",
+					name: config.teamName ?? "Xenon CLI team",
 					...(config.teamRole ? { role: config.teamRole } : {}),
 				});
 			}
-			if (credential?.type === "api_key" && credential.primeTeam) {
-				return credential.primeTeam;
+			if (credential?.type === "api_key" && credential.xenonTeam) {
+				return credential.xenonTeam;
 			}
 			return null;
 		}
-		if (credential?.type === "api_key" && credential.primeTeam !== undefined) {
-			return credential.primeTeam;
+		if (credential?.type === "api_key" && credential.xenonTeam !== undefined) {
+			return credential.xenonTeam;
 		}
 		if (!config?.apiKey && config?.teamId) {
-			return this.toPrimeTeamCredential({
+			return this.toXenonTeamCredential({
 				teamId: config.teamId,
-				name: config.teamName ?? "Prime CLI team",
+				name: config.teamName ?? "Xenon CLI team",
 				...(config.teamRole ? { role: config.teamRole } : {}),
 			});
 		}
@@ -1080,28 +1080,28 @@ export class AuthStorage {
 	}
 
 	getProviderHeaders(providerId: string): Record<string, string> | undefined {
-		if (providerId !== PRIME_INFERENCE_PROVIDER_ID) {
+		if (providerId !== XENON_INFERENCE_PROVIDER_ID) {
 			return undefined;
 		}
 
-		const primeCliConfig = this.getPrimeCliConfig(providerId);
-		if (primeCliConfig?.teamIdFromEnv) {
-			return primeCliConfig.teamId ? { "X-Prime-Team-ID": primeCliConfig.teamId } : undefined;
+		const xenonCliConfig = this.getXenonCliConfig(providerId);
+		if (xenonCliConfig?.teamIdFromEnv) {
+			return xenonCliConfig.teamId ? { "X-Xenon-Team-ID": xenonCliConfig.teamId } : undefined;
 		}
 
-		const teamId = this.getPrimeInferenceTeamSelection()?.teamId;
-		return teamId ? { "X-Prime-Team-ID": teamId } : undefined;
+		const teamId = this.getXenonInferenceTeamSelection()?.teamId;
+		return teamId ? { "X-Xenon-Team-ID": teamId } : undefined;
 	}
 
-	getPrimeCliConfigPath(): string | undefined {
-		if (!this.isPrimeCliConfigEnabled()) {
+	getXenonCliConfigPath(): string | undefined {
+		if (!this.isXenonCliConfigEnabled()) {
 			return undefined;
 		}
-		return getPrimeCliConfigPath(this.options.primeCliConfigPath);
+		return getXenonCliConfigPath(this.options.xenonCliConfigPath);
 	}
 
-	private toPrimeTeamCredential(team: PrimeTeam): PrimeTeamCredential {
-		const credential: PrimeTeamCredential = {
+	private toXenonTeamCredential(team: XenonTeam): XenonTeamCredential {
+		const credential: XenonTeamCredential = {
 			teamId: team.teamId,
 			name: team.name,
 		};
@@ -1117,29 +1117,29 @@ export class AuthStorage {
 		return credential;
 	}
 
-	private getPrimeCliConfig(providerId: string): PrimeCliConfig | undefined {
-		if (providerId !== PRIME_INFERENCE_PROVIDER_ID) {
+	private getXenonCliConfig(providerId: string): XenonCliConfig | undefined {
+		if (providerId !== XENON_INFERENCE_PROVIDER_ID) {
 			return undefined;
 		}
-		if (!this.isPrimeCliConfigEnabled()) {
+		if (!this.isXenonCliConfigEnabled()) {
 			return undefined;
 		}
-		return loadPrimeCliConfig(this.options.primeCliConfigPath);
+		return loadXenonCliConfig(this.options.xenonCliConfigPath);
 	}
 
-	private getPrimeCliApiKey(providerId: string): string | undefined {
-		return this.getPrimeCliConfig(providerId)?.apiKey;
+	private getXenonCliApiKey(providerId: string): string | undefined {
+		return this.getXenonCliConfig(providerId)?.apiKey;
 	}
 
-	private getEnabledPrimeCliConfigPath(): string {
-		const configPath = this.getPrimeCliConfigPath();
+	private getEnabledXenonCliConfigPath(): string {
+		const configPath = this.getXenonCliConfigPath();
 		if (!configPath) {
-			throw new Error("Prime CLI config is not enabled");
+			throw new Error("Xenon CLI config is not enabled");
 		}
 		return configPath;
 	}
 
-	private isPrimeCliConfigEnabled(): boolean {
-		return Boolean(this.options.usePrimeCliConfig || this.options.primeCliConfigPath);
+	private isXenonCliConfigEnabled(): boolean {
+		return Boolean(this.options.useXenonCliConfig || this.options.xenonCliConfigPath);
 	}
 }

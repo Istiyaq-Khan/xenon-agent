@@ -24,10 +24,10 @@ describe("ENG-4645 internal GLM configuration", () => {
 		});
 		vi.stubGlobal("fetch", fetchMock);
 		const authStorage = AuthStorage.inMemory({
-			"prime-inference": {
+			"xenon-inference": {
 				type: "api_key",
-				key: "prime-key",
-				primeTeam: { teamId: "engineering-team", name: "Prime Engineering" },
+				key: "xenon-key",
+				xenonTeam: { teamId: "engineering-team", name: "Xenon Engineering" },
 			},
 		});
 		const registry = ModelRegistry.inMemory(authStorage);
@@ -39,7 +39,7 @@ describe("ENG-4645 internal GLM configuration", () => {
 		expect(model).toMatchObject({
 			name: "GLM 5.2 Fast",
 			api: "openai-completions",
-			provider: "prime-inference",
+			provider: "xenon-inference",
 			baseUrl: "https://api.pinference.ai/api/v1",
 			reasoning: true,
 			contextWindow: 400000,
@@ -52,8 +52,8 @@ describe("ENG-4645 internal GLM configuration", () => {
 		});
 		expect(fetchMock).toHaveBeenCalledWith("https://api.pinference.ai/api/v1/models", {
 			headers: {
-				Authorization: "Bearer prime-key",
-				"X-Prime-Team-ID": "engineering-team",
+				Authorization: "Bearer xenon-key",
+				"X-Xenon-Team-ID": "engineering-team",
 			},
 			signal: expect.any(AbortSignal),
 		});
@@ -67,10 +67,10 @@ describe("ENG-4645 internal GLM configuration", () => {
 			vi.fn(async () => new Response(JSON.stringify({ data: [] }), { status: 200 })),
 		);
 		const authStorage = AuthStorage.inMemory({
-			"prime-inference": {
+			"xenon-inference": {
 				type: "api_key",
-				key: "prime-key",
-				primeTeam: { teamId: "other-team", name: "Other Team" },
+				key: "xenon-key",
+				xenonTeam: { teamId: "other-team", name: "Other Team" },
 			},
 		});
 		const registry = ModelRegistry.inMemory(authStorage);
@@ -91,10 +91,10 @@ describe("ENG-4645 internal GLM configuration", () => {
 			.mockResolvedValue(new Response(null, { status: 503 }));
 		vi.stubGlobal("fetch", fetchMock);
 		const authStorage = AuthStorage.inMemory({
-			"prime-inference": {
+			"xenon-inference": {
 				type: "api_key",
-				key: "prime-key",
-				primeTeam: { teamId: "engineering-team", name: "Prime Engineering" },
+				key: "xenon-key",
+				xenonTeam: { teamId: "engineering-team", name: "Xenon Engineering" },
 			},
 		});
 		const registry = ModelRegistry.inMemory(authStorage);
@@ -106,10 +106,10 @@ describe("ENG-4645 internal GLM configuration", () => {
 			true,
 		);
 
-		authStorage.set("prime-inference", {
+		authStorage.set("xenon-inference", {
 			type: "api_key",
-			key: "prime-key",
-			primeTeam: { teamId: "other-team", name: "Other Team" },
+			key: "xenon-key",
+			xenonTeam: { teamId: "other-team", name: "Other Team" },
 		});
 		expect((await registry.refreshAvailableModels()).some((model) => model.id === "internal/glm-5.2-fast")).toBe(
 			false,
@@ -124,10 +124,10 @@ describe("ENG-4645 internal GLM configuration", () => {
 			vi.fn(async () => new Response(JSON.stringify({ data: [] }), { status: 200 })),
 		);
 		const authStorage = AuthStorage.inMemory({
-			"prime-inference": {
+			"xenon-inference": {
 				type: "api_key",
-				key: "prime-key",
-				primeTeam: { teamId: "other-team", name: "Other Team" },
+				key: "xenon-key",
+				xenonTeam: { teamId: "other-team", name: "Other Team" },
 			},
 		});
 		const registry = ModelRegistry.inMemory(authStorage);
@@ -135,14 +135,14 @@ describe("ENG-4645 internal GLM configuration", () => {
 		const initial = await findInitialModel({
 			scopedModels: [],
 			isContinuing: false,
-			defaultProvider: "prime-inference",
+			defaultProvider: "xenon-inference",
 			defaultModelId: "internal/glm-5.2-fast",
 			modelRegistry: registry,
 		});
 		expect(initial.model?.id).not.toBe("internal/glm-5.2-fast");
 
 		const restored = await restoreModelFromSession(
-			"prime-inference",
+			"xenon-inference",
 			"internal/glm-5.2-fast",
 			undefined,
 			false,
@@ -160,10 +160,10 @@ describe("ENG-4645 internal GLM configuration", () => {
 		);
 		vi.stubGlobal("fetch", fetchMock);
 		const authStorage = AuthStorage.inMemory({
-			"prime-inference": {
+			"xenon-inference": {
 				type: "api_key",
-				key: "prime-key",
-				primeTeam: { teamId: "engineering-team", name: "Prime Engineering" },
+				key: "xenon-key",
+				xenonTeam: { teamId: "engineering-team", name: "Xenon Engineering" },
 			},
 		});
 		const registry = ModelRegistry.inMemory(authStorage);
@@ -171,7 +171,7 @@ describe("ENG-4645 internal GLM configuration", () => {
 		const initial = await findInitialModel({
 			scopedModels: [],
 			isContinuing: false,
-			defaultProvider: "prime-inference",
+			defaultProvider: "xenon-inference",
 			defaultModelId: "internal/glm-5.2-fast",
 			modelRegistry: registry,
 		});
@@ -184,7 +184,7 @@ describe("ENG-4645 internal GLM configuration", () => {
 		const harness = await createHarness();
 		harnesses.push(harness);
 		const currentModel = harness.session.model;
-		const privateModel = harness.session.modelRegistry.find("prime-inference", "internal/glm-5.2-fast");
+		const privateModel = harness.session.modelRegistry.find("xenon-inference", "internal/glm-5.2-fast");
 		expect(currentModel).toBeDefined();
 		expect(privateModel).toBeDefined();
 		if (!currentModel || !privateModel) {
@@ -203,24 +203,24 @@ describe("ENG-4645 internal GLM configuration", () => {
 	test("rejects unauthorized direct and scoped model switches", async () => {
 		const harness = await createHarness();
 		harnesses.push(harness);
-		harness.authStorage.set("prime-inference", {
+		harness.authStorage.set("xenon-inference", {
 			type: "api_key",
-			key: "prime-key",
-			primeTeam: { teamId: "other-team", name: "Other Team" },
+			key: "xenon-key",
+			xenonTeam: { teamId: "other-team", name: "Other Team" },
 		});
 		vi.stubGlobal(
 			"fetch",
 			vi.fn(async () => new Response(JSON.stringify({ data: [] }), { status: 200 })),
 		);
 		const currentModel = harness.session.model;
-		const privateModel = harness.session.modelRegistry.find("prime-inference", "internal/glm-5.2-fast");
+		const privateModel = harness.session.modelRegistry.find("xenon-inference", "internal/glm-5.2-fast");
 		expect(currentModel).toBeDefined();
 		expect(privateModel).toBeDefined();
 		if (!currentModel || !privateModel) {
 			throw new Error("Expected current and private models");
 		}
 
-		await expect(harness.session.setModel(privateModel)).rejects.toThrow("not available for the current Prime team");
+		await expect(harness.session.setModel(privateModel)).rejects.toThrow("not available for the current Xenon team");
 		harness.session.setScopedModels([{ model: currentModel }, { model: privateModel }]);
 
 		expect(await harness.session.cycleModel()).toBeUndefined();
@@ -235,7 +235,7 @@ describe("ENG-4645 internal GLM configuration", () => {
 			modelsJsonPath,
 			JSON.stringify({
 				providers: {
-					"prime-inference": {
+					"xenon-inference": {
 						baseUrl: "https://api.pinference.ai/api/v1",
 						api: "openai-completions",
 						compat: {
@@ -256,22 +256,22 @@ describe("ENG-4645 internal GLM configuration", () => {
 			}),
 		);
 		const authStorage = AuthStorage.inMemory({
-			"prime-inference": {
+			"xenon-inference": {
 				type: "api_key",
-				key: "prime-key",
-				primeTeam: { teamId: "engineering-team", name: "Prime Engineering" },
+				key: "xenon-key",
+				xenonTeam: { teamId: "engineering-team", name: "Xenon Engineering" },
 			},
 		});
 		const registry = ModelRegistry.create(authStorage, modelsJsonPath);
 
 		expect(registry.getError()).toBeUndefined();
 		expect(registry.getAvailable().some((model) => model.id === "internal/glm-5.2-fast")).toBe(true);
-		const model = registry.find("prime-inference", "internal/glm-5.2-fast");
+		const model = registry.find("xenon-inference", "internal/glm-5.2-fast");
 		expect(model).toMatchObject({
 			id: "internal/glm-5.2-fast",
 			name: "GLM 5.2 Fast",
 			api: "openai-completions",
-			provider: "prime-inference",
+			provider: "xenon-inference",
 			baseUrl: "https://api.pinference.ai/api/v1",
 			reasoning: true,
 			contextWindow: 400000,
@@ -286,8 +286,8 @@ describe("ENG-4645 internal GLM configuration", () => {
 
 		expect(await registry.getApiKeyAndHeaders(model!)).toEqual({
 			ok: true,
-			apiKey: "prime-key",
-			headers: { "X-Prime-Team-ID": "engineering-team" },
+			apiKey: "xenon-key",
+			headers: { "X-Xenon-Team-ID": "engineering-team" },
 		});
 	});
 });

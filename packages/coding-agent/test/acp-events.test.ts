@@ -5,7 +5,7 @@ import {
 	acpUpdatesForSessionEvent,
 	bashToolCallId,
 } from "../src/modes/acp/acp-events.js";
-import { PRIME_AGENT_META_NAMESPACE } from "../src/modes/acp/acp-meta.js";
+import { XENON_AGENT_META_NAMESPACE } from "../src/modes/acp/acp-meta.js";
 import type { AgentConnectionSessionEvent } from "../src/modes/agent-connection/types.js";
 
 /** Real streaming shape: the discriminator is on the event, delta is a string. */
@@ -23,7 +23,7 @@ describe("ACP session event mapping", () => {
 		expect(updates).toEqual([
 			{
 				sessionUpdate: "agent_message_chunk",
-				messageId: "prime-agent-assistant-1",
+				messageId: "xenon-agent-assistant-1",
 				content: { type: "text", text: "hello" },
 			},
 		]);
@@ -34,7 +34,7 @@ describe("ACP session event mapping", () => {
 		expect(updates).toEqual([
 			{
 				sessionUpdate: "agent_thought_chunk",
-				messageId: "prime-agent-assistant-1",
+				messageId: "xenon-agent-assistant-1",
 				content: { type: "text", text: "reasoning" },
 			},
 		]);
@@ -48,17 +48,17 @@ describe("ACP session event mapping", () => {
 
 		expect(acpUpdatesForSessionEvent(start, state)).toEqual([]);
 		expect(acpUpdatesForSessionEvent(assistantDelta("thinking_delta", "think"), state)[0]).toMatchObject({
-			messageId: "prime-agent-assistant-1",
+			messageId: "xenon-agent-assistant-1",
 		});
 		expect(acpUpdatesForSessionEvent(assistantDelta("text_delta", "answer"), state)[0]).toMatchObject({
-			messageId: "prime-agent-assistant-1",
+			messageId: "xenon-agent-assistant-1",
 		});
 		expect(acpUpdatesForSessionEvent(end, state)).toEqual([]);
 		expect(state.activeAssistantMessageId).toBeUndefined();
 
 		expect(acpUpdatesForSessionEvent(start, state)).toEqual([]);
 		expect(acpUpdatesForSessionEvent(assistantDelta("text_delta", "next"), state)[0]).toMatchObject({
-			messageId: "prime-agent-assistant-2",
+			messageId: "xenon-agent-assistant-2",
 		});
 	});
 
@@ -115,7 +115,7 @@ describe("ACP session event mapping", () => {
 			content: [{ type: "content", content: { type: "text", text: "done" } }],
 		});
 		expect(updates[0]?._meta).toEqual({
-			[PRIME_AGENT_META_NAMESPACE]: {
+			[XENON_AGENT_META_NAMESPACE]: {
 				ipython: {
 					attachments: [{ mimeType: "image/png", path: "/tmp/plot.png", bytes: 5 }],
 					diffCount: 1,
@@ -189,7 +189,7 @@ describe("ACP session event mapping", () => {
 		} as AgentConnectionSessionEvent);
 		expect(updates[0]?.sessionUpdate).toBe("session_info_update");
 		expect(updates[0]?._meta).toMatchObject({
-			[PRIME_AGENT_META_NAMESPACE]: {
+			[XENON_AGENT_META_NAMESPACE]: {
 				subagents: [{ id: "sub-1", sessionName: "reviewer", status: "running" }],
 			},
 		});
@@ -204,7 +204,7 @@ describe("ACP session event mapping", () => {
 			willRetry: false,
 		} as AgentConnectionSessionEvent);
 		expect(updates[0]?._meta).toMatchObject({
-			[PRIME_AGENT_META_NAMESPACE]: { compaction: { tokensBefore: 1234, summary: "compacted" } },
+			[XENON_AGENT_META_NAMESPACE]: { compaction: { tokensBefore: 1234, summary: "compacted" } },
 		});
 	});
 
@@ -214,7 +214,7 @@ describe("ACP session event mapping", () => {
 			goal: { status: "active", objective: "ship ACP", tokenBudget: 1000, tokensUsed: 25 },
 		} as AgentConnectionSessionEvent);
 		expect(updates[0]?._meta).toMatchObject({
-			[PRIME_AGENT_META_NAMESPACE]: {
+			[XENON_AGENT_META_NAMESPACE]: {
 				goal: { status: "active", objective: "ship ACP", tokenBudget: 1000, tokensUsed: 25 },
 			},
 		});
@@ -232,7 +232,7 @@ describe("ACP session event mapping", () => {
 			},
 		} as AgentConnectionSessionEvent);
 		expect(done[0]?._meta).toMatchObject({
-			[PRIME_AGENT_META_NAMESPACE]: {
+			[XENON_AGENT_META_NAMESPACE]: {
 				refinement: { status: "complete", summary: "persisted a memory", changes: ["create memory:m1"] },
 			},
 		});
@@ -242,7 +242,7 @@ describe("ACP session event mapping", () => {
 			error: "budget exhausted",
 		} as AgentConnectionSessionEvent);
 		expect(failed[0]?._meta).toMatchObject({
-			[PRIME_AGENT_META_NAMESPACE]: { refinement: { status: "failed", error: "budget exhausted" } },
+			[XENON_AGENT_META_NAMESPACE]: { refinement: { status: "failed", error: "budget exhausted" } },
 		});
 	});
 
@@ -258,7 +258,7 @@ describe("ACP session event mapping", () => {
 			},
 		} as AgentConnectionSessionEvent);
 		expect(updates[0]?._meta).toMatchObject({
-			[PRIME_AGENT_META_NAMESPACE]: {
+			[XENON_AGENT_META_NAMESPACE]: {
 				agentMessage: { toolCallId: "cell-9", target: "reviewer", deliveryStatus: "queued" },
 			},
 		});
@@ -292,7 +292,7 @@ describe("ACP session event mapping", () => {
 			willRetry: false,
 		} as AgentConnectionSessionEvent);
 		expect(compaction[0]?._meta).toMatchObject({
-			[PRIME_AGENT_META_NAMESPACE]: { compaction: { tokensBefore: 90_000, summary: "kept the last turns" } },
+			[XENON_AGENT_META_NAMESPACE]: { compaction: { tokensBefore: 90_000, summary: "kept the last turns" } },
 		});
 	});
 

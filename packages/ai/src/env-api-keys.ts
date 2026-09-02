@@ -99,10 +99,13 @@ function getApiKeyEnvVars(provider: string): readonly string[] | undefined {
 		return ["ANTHROPIC_OAUTH_TOKEN", "ANTHROPIC_API_KEY"];
 	}
 
+	if (provider === "xenon-inference") {
+		return ["XENON_API_KEY"];
+	}
+
 	const envMap: Record<string, string> = {
 		openai: "OPENAI_API_KEY",
 		"azure-openai-responses": "AZURE_OPENAI_API_KEY",
-		"prime-inference": "PRIME_API_KEY",
 		deepseek: "DEEPSEEK_API_KEY",
 		google: "GEMINI_API_KEY",
 		"google-vertex": "GOOGLE_CLOUD_API_KEY",
@@ -201,12 +204,12 @@ export function getEnvApiKey(provider: string): string | undefined {
 	return undefined;
 }
 
-export function getPrimeTeamId(): string | undefined {
-	const fromEnv = process.env.PRIME_TEAM_ID || getProcEnv("PRIME_TEAM_ID");
+export function getXenonTeamId(): string | undefined {
+	const fromEnv = process.env.XENON_TEAM_ID || getProcEnv("XENON_TEAM_ID");
 	if (fromEnv?.trim()) return fromEnv.trim();
 
 	if (!_existsSync || !_readFileSync || !_homedir || !_join) return undefined;
-	const configPath = _join(_homedir(), ".prime", "config.json");
+	const configPath = _join(_homedir(), ".xenon", "config.json");
 	if (!_existsSync(configPath)) return undefined;
 	try {
 		const parsed = JSON.parse(_readFileSync(configPath, "utf-8")) as unknown;

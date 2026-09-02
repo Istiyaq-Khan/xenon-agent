@@ -2,22 +2,22 @@
 
 ## [0.8.1] - 2026-08-26
 
-- Refreshed the generated model catalog from live provider catalogs: added GLM 5.3 (OpenRouter, Prime Inference), DeepSeek V4 Flash Vision Exp, and Inkling free routes; followed the Vercel AI Gateway `xai/` to `spacexai/` grok rename; picked up repricing for gpt-5.6-sol, Gemini 3.6 Flash, and others.
+- Refreshed the generated model catalog from live provider catalogs: added GLM 5.3 (OpenRouter, Xenon Inference), DeepSeek V4 Flash Vision Exp, and Inkling free routes; followed the Vercel AI Gateway `xai/` to `spacexai/` grok rename; picked up repricing for gpt-5.6-sol, Gemini 3.6 Flash, and others.
 - Fixed OpenAI-compatible Chat Completions replay dropping opaque `reasoning_details` between turns.
 - Refreshed the generated model catalog from live provider catalogs: models.dev rescoped `cloudflare-ai-gateway` to proxied third-party models (the `workers-ai/@cf/...` mirrors and legacy OpenAI ids are gone; Cloudflare-hosted models remain under `cloudflare-workers-ai`); added devstral-2512 and MiniMax M2.7/M3 free routes; picked up repricing for gpt-5.6/gpt-5.6-sol (5/30 -> 4/20), kimi-k2.6, glm-5.1/5.2, and deepseek-v4-pro.
 
 ## [0.8.0] - 2026-08-21
 
 - Added endpoint binding to MCP OAuth credentials: tokens record the URL they were issued for, and refreshes carry the original binding forward without ever inferring one for unbound legacy credentials.
-- Added Fast mode (service_tier `priority`) support for OpenAI API-key models GPT-5.4/GPT-5.5/GPT-5.6, and corrected the GPT-5.6 fast-pricing multiplier from 2.5x to 2x per OpenAI's pricing table ([#1595](https://github.com/PrimeIntellect-ai/prime-agent/discussions/1595)).
+- Added Fast mode (service_tier `priority`) support for OpenAI API-key models GPT-5.4/GPT-5.5/GPT-5.6, and corrected the GPT-5.6 fast-pricing multiplier from 2.5x to 2x per OpenAI's pricing table ([#1595](https://github.com/Istiyaq-Khan/xenon-agent/discussions/1595)).
 - Fixed path-scoped protected-resource discovery and resource-bound refresh for MCP OAuth servers.
 
 ## [0.7.4] - 2026-08-19
 
 ## [0.7.3] - 2026-08-17
 
-- Added provider-derived reasoning levels for OpenRouter and Prime Inference models, including sparse, mandatory, toggle-only, and explicit-off capabilities.
-- Added Qwen 3.8 Max to the featured Prime Inference catalog ([#1247](https://github.com/PrimeIntellect-ai/prime-agent/pull/1247) by [@eliebak](https://github.com/eliebak)).
+- Added provider-derived reasoning levels for OpenRouter and Xenon Inference models, including sparse, mandatory, toggle-only, and explicit-off capabilities.
+- Added Qwen 3.8 Max to the featured Xenon Inference catalog ([#1247](https://github.com/Istiyaq-Khan/xenon-agent/pull/1247) by [@eliebak](https://github.com/eliebak)).
 - Refreshed generated provider catalogs, removed retired routes, and aligned provider defaults and cross-provider handoff fixtures with models currently served.
 
 ## [0.7.2] - 2026-08-11
@@ -42,7 +42,7 @@
 
 ### Changed
 
-- Updated the model catalog snapshot with Claude Opus 5 across supported providers, Gemini 3.5/3.6 Flash models, Kimi K3 variants, and the current 103-model Prime Inference catalog; removed the discontinued `gpt-5-chat`, `gpt-5-codex`, and `laguna-m.1` routes.
+- Updated the model catalog snapshot with Claude Opus 5 across supported providers, Gemini 3.5/3.6 Flash models, Kimi K3 variants, and the current 103-model Xenon Inference catalog; removed the discontinued `gpt-5-chat`, `gpt-5-codex`, and `laguna-m.1` routes.
 - Corrected generated catalog metadata for Opus 5 adaptive thinking, Copilot Claude routing, gateway reasoning tags, Kimi K3 variants, and unsupported Google and batch routes; excluded Gemini Live, Deep Research, and Computer Use models.
 
 ## [0.3.3] - 2026-07-23
@@ -51,14 +51,14 @@
 
 ## [0.3.2] - 2026-07-20
 
-- Added Kimi K3 to the Prime Inference and OpenRouter model catalogs with multimodal input and mandatory max reasoning.
-- Fixed prompt caching and retention-aware cache-cost estimates for Anthropic models routed through Prime Inference ([ENG-4723](https://linear.app/primeintellect/issue/ENG-4723)).
+- Added Kimi K3 to the Xenon Inference and OpenRouter model catalogs with multimodal input and mandatory max reasoning.
+- Fixed prompt caching and retention-aware cache-cost estimates for Anthropic models routed through Xenon Inference ([ENG-4723](https://linear.app/xenonintellect/issue/ENG-4723)).
 
 ## [0.3.1] - 2026-07-15
 
 - Added provider service-tier forwarding to shared stream options.
-- Removed team-gated internal Prime Inference routes from the public model catalog so clients can discover them from authenticated team catalogs instead.
-- Fixed the generated Nemotron 3 Ultra output cap being dropped when OpenRouter omits max completion tokens ([#420](https://github.com/PrimeIntellect-ai/prime-agent/pull/420)).
+- Removed team-gated internal Xenon Inference routes from the public model catalog so clients can discover them from authenticated team catalogs instead.
+- Fixed the generated Nemotron 3 Ultra output cap being dropped when OpenRouter omits max completion tokens ([#420](https://github.com/Istiyaq-Khan/xenon-agent/pull/420)).
 
 ## [0.3.0] - 2026-07-13
 
@@ -66,39 +66,39 @@
 
 ## [0.2.8] - 2026-07-09
 
-- Registered the full Prime Inference catalog (97 models, up from 32) instead of a curated whitelist; context/output limits, vision, and reasoning now come from OpenRouter metadata with a small override table for limits the gateway enforces differently (verified against the live API), and raw/duplicate variants (BF16, HF-cased, `zai-org/`, fine-tune outputs) are skipped.
-- Fixed Prime Inference context windows that disagreed with the live gateway: `anthropic/claude-sonnet-4.5` capped at 200k (route rejects longer prompts), `z-ai/glm-5.2` and `internal/glm-5.2-fast` raised to 1M, `minimax/minimax-m3` corrected to 512k, `nvidia/nemotron-3-*` corrected to their enforced 262k/131k windows.
-- Removed `prime-intellect/intellect-3`, which no longer serves (404 from the gateway).
-- Added an optional `featured` flag to `Model` so pickers can pin flagship models above a provider's long tail; set for 30 Prime Inference flagships.
+- Registered the full Xenon Inference catalog (97 models, up from 32) instead of a curated whitelist; context/output limits, vision, and reasoning now come from OpenRouter metadata with a small override table for limits the gateway enforces differently (verified against the live API), and raw/duplicate variants (BF16, HF-cased, `zai-org/`, fine-tune outputs) are skipped.
+- Fixed Xenon Inference context windows that disagreed with the live gateway: `anthropic/claude-sonnet-4.5` capped at 200k (route rejects longer prompts), `z-ai/glm-5.2` and `internal/glm-5.2-fast` raised to 1M, `minimax/minimax-m3` corrected to 512k, `nvidia/nemotron-3-*` corrected to their enforced 262k/131k windows.
+- Removed `xenon-intellect/intellect-3`, which no longer serves (404 from the gateway).
+- Added an optional `featured` flag to `Model` so pickers can pin flagship models above a provider's long tail; set for 30 Xenon Inference flagships.
 - Added GPT-5.6 Sol, Terra, and Luna to OpenAI API-key and Codex subscription model catalogs, with their 1.05M API / 272k Codex context windows and `low` through `max` reasoning support.
 
 ## [0.2.7] - 2026-07-08
 
-- Added `internal/glm-5.2-fast` to the Prime Inference model catalog.
-- Added Claude Sonnet 5 to the Anthropic and Prime Inference model catalogs.
+- Added `internal/glm-5.2-fast` to the Xenon Inference model catalog.
+- Added Claude Sonnet 5 to the Anthropic and Xenon Inference model catalogs.
 
 ## [0.2.6] - 2026-07-06
 
 ## [0.2.5] - 2026-07-06
 
-- Added Claude Fable 5 to the Prime Inference model catalog and refreshed generated model metadata ([#317](https://github.com/PrimeIntellect-ai/prime-agent/pull/317)).
-- Changed provider stream failures to preserve classified causes, raw stop reasons, and request IDs instead of collapsing them into generic unknown errors ([#313](https://github.com/PrimeIntellect-ai/prime-agent/pull/313)).
+- Added Claude Fable 5 to the Xenon Inference model catalog and refreshed generated model metadata ([#317](https://github.com/Istiyaq-Khan/xenon-agent/pull/317)).
+- Changed provider stream failures to preserve classified causes, raw stop reasons, and request IDs instead of collapsing them into generic unknown errors ([#313](https://github.com/Istiyaq-Khan/xenon-agent/pull/313)).
 
 ## [0.2.4] - 2026-07-01
 
-- Added Claude Fable 5 support on the Anthropic and Bedrock providers, handling its always-on adaptive thinking by never sending an explicit `thinking: disabled` or sampling params (which Fable rejects with a 400) ([#302](https://github.com/PrimeIntellect-ai/prime-agent/issues/302)).
-- Fixed the `openai-completions` and `openai-responses` providers serializing empty tool results as a literal "(see attached image)" placeholder; the placeholder is now gated on the result actually having images, matching the google-shared and mistral providers ([#290](https://github.com/PrimeIntellect-ai/prime-agent/issues/290)).
+- Added Claude Fable 5 support on the Anthropic and Bedrock providers, handling its always-on adaptive thinking by never sending an explicit `thinking: disabled` or sampling params (which Fable rejects with a 400) ([#302](https://github.com/Istiyaq-Khan/xenon-agent/issues/302)).
+- Fixed the `openai-completions` and `openai-responses` providers serializing empty tool results as a literal "(see attached image)" placeholder; the placeholder is now gated on the result actually having images, matching the google-shared and mistral providers ([#290](https://github.com/Istiyaq-Khan/xenon-agent/issues/290)).
 
 ## [0.2.3] - 2026-06-30
 
-- Added a `./mcp` entry point with a built-in MCP server catalog (Linear, Notion) and generic OAuth 2.1 (PKCE + dynamic client registration) providers stored as `mcp:<server>` in `auth.json`; the local OAuth callback server tries a range of ports so a stale or concurrent login can't block sign-in ([#280](https://github.com/PrimeIntellect-ai/prime-agent/issues/280)).
-- Added the `qwen/qwen3-30b-a3b-instruct-2507` model to the Prime Inference catalog ([#284](https://github.com/PrimeIntellect-ai/prime-agent/issues/284)).
+- Added a `./mcp` entry point with a built-in MCP server catalog (Linear, Notion) and generic OAuth 2.1 (PKCE + dynamic client registration) providers stored as `mcp:<server>` in `auth.json`; the local OAuth callback server tries a range of ports so a stale or concurrent login can't block sign-in ([#280](https://github.com/Istiyaq-Khan/xenon-agent/issues/280)).
+- Added the `qwen/qwen3-30b-a3b-instruct-2507` model to the Xenon Inference catalog ([#284](https://github.com/Istiyaq-Khan/xenon-agent/issues/284)).
 
 ## [0.2.2] - 2026-06-25
 
-- Added a curated `vision` flag on Prime Inference model metadata so vision-capable models advertise `["text", "image"]` input, since the Prime Inference models API reports no modality data ([#261](https://github.com/PrimeIntellect-ai/prime-agent/issues/261)).
-- Changed Prime Inference model names to drop the redundant ` (Prime Inference)` suffix at the generator source ([#252](https://github.com/PrimeIntellect-ai/prime-agent/issues/252)).
-- Fixed the declared context window for Prime Inference Claude Opus 4.6/4.7/4.8 and Sonnet 4.6 to 200k (the route lacks the long-context beta), and added `calculatePromptTokens` so context budgeting counts prompt tokens only ([#246](https://github.com/PrimeIntellect-ai/prime-agent/issues/246)).
+- Added a curated `vision` flag on Xenon Inference model metadata so vision-capable models advertise `["text", "image"]` input, since the Xenon Inference models API reports no modality data ([#261](https://github.com/Istiyaq-Khan/xenon-agent/issues/261)).
+- Changed Xenon Inference model names to drop the redundant ` (Xenon Inference)` suffix at the generator source ([#252](https://github.com/Istiyaq-Khan/xenon-agent/issues/252)).
+- Fixed the declared context window for Xenon Inference Claude Opus 4.6/4.7/4.8 and Sonnet 4.6 to 200k (the route lacks the long-context beta), and added `calculatePromptTokens` so context budgeting counts prompt tokens only ([#246](https://github.com/Istiyaq-Khan/xenon-agent/issues/246)).
 
 ## [0.2.1] - 2026-06-23
 
@@ -120,7 +120,7 @@
 
 ### Added
 
-- Added the `glm-5.2`, `minimax-m3`, and `kimi-k2.7-code` models from Prime Inference, and marked the MiniMax `minimax-m*` and Moonshot `kimi*` families as reasoning models in the registry generator.
+- Added the `glm-5.2`, `minimax-m3`, and `kimi-k2.7-code` models from Xenon Inference, and marked the MiniMax `minimax-m*` and Moonshot `kimi*` families as reasoning models in the registry generator.
 
 ## [0.1.6] - 2026-06-17
 
@@ -138,7 +138,7 @@
 
 ### Added
 
-- Added Claude Opus 4.8 to the curated Prime Inference model list.
+- Added Claude Opus 4.8 to the curated Xenon Inference model list.
 
 ## [0.0.10] - 2026-06-08
 
@@ -148,13 +148,13 @@
 
 ### Removed
 
-- Removed the `x-ai/grok-code-fast-1` model from the Prime Inference catalog.
+- Removed the `x-ai/grok-code-fast-1` model from the Xenon Inference catalog.
 
 ## [0.0.7] - 2026-06-01
 
 ### Fixed
 
-- Fixed OAuth callback pages to use Prime butterfly branding on a black background.
+- Fixed OAuth callback pages to use Xenon butterfly branding on a black background.
 
 ## [0.0.6] - 2026-05-27
 
@@ -170,8 +170,8 @@
 
 ### Added
 
-- Added Prime Inference as an OpenAI-compatible built-in provider using `PRIME_API_KEY` authentication, curated model generation, and Prime-specific request compatibility.
-- Added GLM 5 and GLM 5.1 to the Prime Inference model catalog with Z.ai-style thinking compatibility.
+- Added Xenon Inference as an OpenAI-compatible built-in provider using `XENON_API_KEY` authentication, curated model generation, and Xenon-specific request compatibility.
+- Added GLM 5 and GLM 5.1 to the Xenon Inference model catalog with Z.ai-style thinking compatibility.
 
 ### Fixed
 

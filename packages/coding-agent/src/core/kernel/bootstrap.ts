@@ -13,7 +13,7 @@ import type { PythonSkillRuntimeInfo } from "../skills.js";
 
 const BOOTSTRAP_SCHEMA = 9;
 const PYTHON_VERSION = "3.11";
-const RUNTIME_REQUIREMENT = "prime-agent-runtime";
+const RUNTIME_REQUIREMENT = "xenon-agent-runtime";
 // Serializes the kernel's user namespace so it can be revived across session
 // resume. Internal-only; intentionally not surfaced to the model as an import.
 const STATE_SNAPSHOT_REQUIREMENT = "dill";
@@ -326,8 +326,8 @@ function formatPythonSkillInstallArgs(skill: BootstrapPythonSkill): string[] {
 
 function ensureKernelPythonKey(pythonSkills: readonly BootstrapPythonSkill[]): string {
 	return [
-		process.env.PRIME_AGENT_KERNEL_PYTHON ?? "",
-		process.env.PRIME_AGENT_KERNEL_VENV ?? "",
+		process.env.XENON_AGENT_KERNEL_PYTHON ?? process.env.XENON_AGENT_KERNEL_PYTHON ?? "",
+		process.env.XENON_AGENT_KERNEL_VENV ?? process.env.XENON_AGENT_KERNEL_VENV ?? "",
 		process.env.HOME ?? "",
 		process.env.XDG_DATA_HOME ?? "",
 		JSON.stringify(pythonSkills),
@@ -335,16 +335,26 @@ function ensureKernelPythonKey(pythonSkills: readonly BootstrapPythonSkill[]): s
 }
 
 export function getKernelVenvDir(): string {
-	const override = process.env.PRIME_AGENT_KERNEL_VENV;
+	const override = process.env.XENON_AGENT_KERNEL_VENV ?? process.env.XENON_AGENT_KERNEL_VENV;
 	if (override) return path.resolve(expandHome(override));
-	return path.join(os.homedir(), ".prime", "agent", "kernel-venv");
+	const legacyDir = path.join(os.homedir(), ".xenon", "agent", "kernel-venv");
+	const newDir = path.join(os.homedir(), ".xenon-agent", "kernel-venv");
+	if (existsSync(legacyDir) && !existsSync(newDir)) {
+		return legacyDir;
+	}
+	return newDir;
 }
 
 function getXdgKernelVenvDir(): string {
 	const dataHome = process.env.XDG_DATA_HOME
 		? path.resolve(expandHome(process.env.XDG_DATA_HOME))
 		: path.join(os.homedir(), ".local", "share");
-	return path.join(dataHome, "prime", "agent", "kernel-venv");
+	const legacyDir = path.join(dataHome, "xenon", "agent", "kernel-venv");
+	const newDir = path.join(dataHome, "xenon-agent", "kernel-venv");
+	if (existsSync(legacyDir) && !existsSync(newDir)) {
+		return legacyDir;
+	}
+	return newDir;
 }
 
 async function resolveWritableKernelVenvDir(): Promise<string> {
@@ -353,7 +363,7 @@ async function resolveWritableKernelVenvDir(): Promise<string> {
 		await mkdir(path.dirname(primary), { recursive: true });
 		return primary;
 	} catch (primaryError) {
-		if (process.env.PRIME_AGENT_KERNEL_VENV) {
+		if (process.env.XENON_AGENT_KERNEL_VENV || process.env.XENON_AGENT_KERNEL_VENV) {
 			throw new Error(`couldn't create kernel venv parent directory for ${primary}: ${errorMessage(primaryError)}`);
 		}
 
@@ -363,7 +373,7 @@ async function resolveWritableKernelVenvDir(): Promise<string> {
 			return fallback;
 		} catch (fallbackError) {
 			throw new Error(
-				`couldn't create kernel venv directory at ${primary} or ${fallback}; set PRIME_AGENT_KERNEL_PYTHON to a python with a current prime-agent-runtime installed. ${errorMessage(fallbackError)}`,
+				`couldn't create kernel venv directory at ${primary} or ${fallback}; set XENON_AGENT_KERNEL_PYTHON to a python with a current xenon-agent-runtime installed. ${errorMessage(fallbackError)}`,
 			);
 		}
 	}
@@ -396,7 +406,7 @@ async function pythonImports(python: string, moduleName: string): Promise<boolea
 	}
 }
 
-async function hasPrimeAgentRuntime(python: string): Promise<boolean> {
+export async function hasXenonAgentRuntime(python: string): Promise<boolean> {
 	try {
 		await run(python, ["-c", RUNTIME_READY_CHECK], { stdio: "ignore" });
 		return true;
@@ -404,7 +414,6 @@ async function hasPrimeAgentRuntime(python: string): Promise<boolean> {
 		return false;
 	}
 }
-
 async function missingRlmExtraImportLabels(python: string): Promise<string[]> {
 	const missing: string[] = [];
 	for (const pkg of DEFAULT_RLM_EXTRA_PACKAGES) {
@@ -513,11 +522,13 @@ async function ensureUv(options: EnsureKernelPythonOptions): Promise<string> {
 	if (await isExecutable(localUv)) return localUv;
 
 	const shouldInstallUv =
-		process.env.PRIME_AGENT_INSTALL_UV === "1" || (!options.onProgress && (await confirmUvInstall()));
+		process.env.XENON_AGENT_INSTALL_UV === "1" ||
+		process.env.XENON_AGENT_INSTALL_UV === "1" ||
+		(!options.onProgress && (await confirmUvInstall()));
 	if (!shouldInstallUv) {
 		throw new Error(
 			`uv is required to set up the Python kernel. Install uv yourself: ${UV_INSTALL_COMMAND}, ` +
-				"or set PRIME_AGENT_INSTALL_UV=1 to let prime-agent run that installer.",
+				"or set XENON_AGENT_INSTALL_UV=1 to let xenon-agent run that installer.",
 		);
 	}
 
@@ -526,7 +537,7 @@ async function ensureUv(options: EnsureKernelPythonOptions): Promise<string> {
 		await run("sh", ["-c", UV_INSTALL_COMMAND], { stdio: options.onProgress ? "ignore" : "inherit" });
 	} catch (error) {
 		throw new Error(
-			`couldn't install uv from astral.sh; install it yourself: ${UV_INSTALL_COMMAND}, then re-run prime-agent. ${errorMessage(error)}`,
+			`couldn't install uv from astral.sh; install it yourself: ${UV_INSTALL_COMMAND}, then re-run xenon-agent. ${errorMessage(error)}`,
 		);
 	}
 
@@ -537,12 +548,12 @@ async function ensureUv(options: EnsureKernelPythonOptions): Promise<string> {
 }
 
 async function confirmUvInstall(): Promise<boolean> {
-	if (process.env.PRIME_AGENT_INSTALL_UV === "0") return false;
+	if (process.env.XENON_AGENT_INSTALL_UV === "0" || process.env.XENON_AGENT_INSTALL_UV === "0") return false;
 	if (!stdin.isTTY || !stderr.isTTY) return false;
 
 	const rl = createInterface({ input: stdin, output: stderr });
 	try {
-		const answer = (await rl.question("Prime Agent needs uv to set up Python. Install uv from astral.sh now? [Y/n] "))
+		const answer = (await rl.question("Xenon Agent needs uv to set up Python. Install uv from astral.sh now? [Y/n] "))
 			.trim()
 			.toLowerCase();
 		return answer !== "n" && answer !== "no";
@@ -649,15 +660,13 @@ async function writeBootstrapVersion(
 
 function runtimeCandidateDirs(): string[] {
 	const moduleDir = path.dirname(fileURLToPath(import.meta.url));
-	// dist/prime-agent-runtime is listed first deliberately: it is the only path stable
-	// across every shipped layout (dist/, dist/bundle/, bun), where import.meta.url-relative
-	// resolution breaks. `npm run build` rebuilds it from live source (copy-assets does
-	// rm -rf + cp), so the staleness hash still refreshes on every build. The relative
-	// paths below cover running from source (tsx) where dist/ hasn't been built.
 	return [
-		path.join(getPackageDir(), "dist", "prime-agent-runtime"),
-		path.resolve(moduleDir, "..", "..", "prime-agent-runtime"),
-		path.resolve(moduleDir, "..", "..", "..", "..", "..", "prime-agent-runtime"),
+		path.join(getPackageDir(), "dist", "xenon-agent-runtime"),
+		path.join(getPackageDir(), "dist", "xenon-agent-runtime"),
+		path.resolve(moduleDir, "..", "..", "xenon-agent-runtime"),
+		path.resolve(moduleDir, "..", "..", "xenon-agent-runtime"),
+		path.resolve(moduleDir, "..", "..", "..", "..", "..", "xenon-agent-runtime"),
+		path.resolve(moduleDir, "..", "..", "..", "..", "..", "xenon-agent-runtime"),
 	];
 }
 
@@ -815,7 +824,7 @@ async function syncPythonSkills(
 
 async function kernelBaseReady(python: string, venv: string, runtimeIdentity: string): Promise<boolean> {
 	return (
-		(await hasPrimeAgentRuntime(python)) &&
+		(await hasXenonAgentRuntime(python)) &&
 		bootstrapBaseVersionCurrent(await readBootstrapVersion(venv), runtimeIdentity)
 	);
 }
@@ -827,7 +836,7 @@ async function kernelReady(
 	pythonSkills: readonly BootstrapPythonSkill[],
 ): Promise<boolean> {
 	return (
-		(await hasPrimeAgentRuntime(python)) &&
+		(await hasXenonAgentRuntime(python)) &&
 		bootstrapVersionCurrent(await readBootstrapVersion(venv), runtimeIdentity, pythonSkills)
 	);
 }
@@ -835,8 +844,8 @@ async function kernelReady(
 function formatBootstrapFailure(error: unknown): Error {
 	return new Error(
 		`Failed to set up the Python kernel runtime. ${errorMessage(error)}\n` +
-			"First-time setup needs internet to install uv, Python, prime-agent-runtime, and default Python packages; once set up, prime-agent runs offline. " +
-			"Set PRIME_AGENT_KERNEL_PYTHON to a Python with a current prime-agent-runtime and default Python packages installed to skip auto-bootstrap.",
+			"First-time setup needs internet to install uv, Python, xenon-agent-runtime, and default Python packages; once set up, xenon-agent runs offline. " +
+			"Set XENON_AGENT_KERNEL_PYTHON to a Python with a current xenon-agent-runtime and default Python packages installed to skip auto-bootstrap.",
 	);
 }
 
@@ -844,13 +853,13 @@ async function ensureKernelPythonUncached(
 	options: EnsureKernelPythonOptions,
 	pythonSkills: readonly BootstrapPythonSkill[],
 ): Promise<string> {
-	const override = process.env.PRIME_AGENT_KERNEL_PYTHON;
+	const override = process.env.XENON_AGENT_KERNEL_PYTHON ?? process.env.XENON_AGENT_KERNEL_PYTHON;
 	if (override) {
 		const python = path.resolve(expandHome(override));
 		const missing: string[] = [];
-		if (!(await hasPrimeAgentRuntime(python))) {
+		if (!(await hasXenonAgentRuntime(python))) {
 			missing.push(
-				"a current prime-agent-runtime with callable rlm.run, rlm.host_request, and explicit harness CRUD methods",
+				"a current xenon-agent-runtime with callable rlm.run, rlm.host_request, and explicit harness CRUD methods",
 			);
 		}
 		if (missing.length === 0) {
@@ -864,12 +873,15 @@ async function ensureKernelPythonUncached(
 			if (missingPythonSkills.length > 0) {
 				reportProgress(
 					options,
-					`Warning: Python skills unavailable in PRIME_AGENT_KERNEL_PYTHON and will be disabled: ${missingPythonSkills.join(", ")}`,
+					`Warning: Python skills unavailable in ${process.env.XENON_AGENT_KERNEL_PYTHON ? "XENON_AGENT_KERNEL_PYTHON" : "XENON_AGENT_KERNEL_PYTHON"} and will be disabled: ${missingPythonSkills.join(", ")}`,
 				);
 			}
 		}
 		if (missing.length === 0) return python;
-		throw new Error(`PRIME_AGENT_KERNEL_PYTHON points to a Python missing ${missing.join(" and ")}: ${python}`);
+		const envVarName = process.env.XENON_AGENT_KERNEL_PYTHON
+			? "XENON_AGENT_KERNEL_PYTHON"
+			: "XENON_AGENT_KERNEL_PYTHON";
+		throw new Error(`${envVarName} points to a Python missing ${missing.join(" and ")}: ${python}`);
 	}
 
 	const venv = await resolveWritableKernelVenvDir();

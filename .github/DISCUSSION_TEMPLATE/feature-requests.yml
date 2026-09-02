@@ -8,7 +8,7 @@ body:
     id: area
     attributes:
       label: Area
-      description: Which part of Prime Agent would this affect?
+      description: Which part of Xenon Agent would this affect?
       multiple: true
       options:
         - Agent core

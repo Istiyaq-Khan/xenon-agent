@@ -45,7 +45,7 @@ afterEach(() => {
 });
 
 function createHarness() {
-	const directory = mkdtempSync(join(tmpdir(), "prime-supervisor-input-pause-"));
+	const directory = mkdtempSync(join(tmpdir(), "xenon-supervisor-input-pause-"));
 	tempDirs.push(directory);
 	const supervisor = new DaemonSupervisor(join(directory, "daemon.sock"), {
 		defaultSessionConfig: { agentDir: directory, cwd: directory },

@@ -15,14 +15,14 @@ interface OnboardingSplashHandle {
 }
 
 interface InteractiveOnboardingHarness {
-	runOnboardingFlow(showPrimeCliSplash?: boolean): Promise<void>;
+	runOnboardingFlow(showXenonCliSplash?: boolean): Promise<void>;
 	uiServices: {
 		modelRegistry: ModelRegistry;
 	};
 	getModelCandidates(): Promise<AgentConnectionModel[]>;
 	showOnboardingSplash(continueActionLabel?: string): Promise<OnboardingSplashHandle | undefined>;
 	createAuthFlows(): {
-		runPrimeInferenceLogin(): Promise<AuthenticationResult>;
+		runXenonInferenceLogin(): Promise<AuthenticationResult>;
 	};
 	prepareForModelSelectionAfterLogin(authResult: AuthenticationResult): Promise<boolean>;
 	showConfigurationMenu(tab: "providers" | "models" | "mcp-connections"): Promise<void>;
@@ -71,7 +71,7 @@ describe("ENG-4658 onboarding transitions", () => {
 	});
 
 	test("keeps the splash mounted until first-launch model selection closes", async () => {
-		const harness = await createHarness({ provider: "prime-inference", withConfiguredAuth: false });
+		const harness = await createHarness({ provider: "xenon-inference", withConfiguredAuth: false });
 		harnesses.push(harness);
 		const order: string[] = [];
 		const configuration = deferred<void>();
@@ -84,12 +84,12 @@ describe("ENG-4658 onboarding transitions", () => {
 		fakeThis.getModelCandidates = vi.fn(async () => []);
 		fakeThis.showOnboardingSplash = vi.fn(async () => splash);
 		fakeThis.createAuthFlows = vi.fn(() => ({
-			runPrimeInferenceLogin: async (): Promise<AuthenticationResult> => {
+			runXenonInferenceLogin: async (): Promise<AuthenticationResult> => {
 				order.push("login");
 				return {
 					status: "success",
-					providerId: "prime-inference",
-					providerName: "Prime Inference",
+					providerId: "xenon-inference",
+					providerName: "Xenon Inference",
 					authType: "api_key",
 					kind: "provider",
 				};
@@ -113,7 +113,7 @@ describe("ENG-4658 onboarding transitions", () => {
 
 		expect(fakeThis.showOnboardingSplash).toHaveBeenCalledWith();
 		expect(order).toEqual([
-			"progress:Signing in to Prime Intellect...",
+			"progress:Signing in to Xenon Intellect...",
 			"login",
 			"progress:Preparing models...",
 			"prepare",

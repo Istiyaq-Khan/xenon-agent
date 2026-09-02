@@ -7,9 +7,12 @@ import { ReplKernelManager } from "../src/core/kernel/index.js";
 
 function resolveReplPython(): string | null {
 	const candidates = [
-		process.env.PRIME_AGENT_KERNEL_PYTHON,
-		resolve(__dirname, "..", "..", "..", "prime-agent-runtime", ".venv", "bin", "python"),
-		join(homedir(), ".prime", "agent", "kernel-venv", "bin", "python"),
+		process.env.XENON_AGENT_KERNEL_PYTHON,
+		process.env.XENON_AGENT_KERNEL_PYTHON,
+		resolve(__dirname, "..", "..", "..", "xenon-agent-runtime", ".venv", "bin", "python"),
+		resolve(__dirname, "..", "..", "..", "xenon-agent-runtime", ".venv", "bin", "python"),
+		join(homedir(), ".xenon-agent", "kernel-venv", "bin", "python"),
+		join(homedir(), ".xenon", "agent", "kernel-venv", "bin", "python"),
 	].filter((p): p is string => Boolean(p));
 	for (const python of candidates) {
 		if (!existsSync(python)) continue;
@@ -28,7 +31,7 @@ describeIfKernel("repl kernel state snapshot round-trip (real runtime)", { tags:
 	let manifestPath = "";
 
 	beforeAll(() => {
-		dir = mkdtempSync(join(tmpdir(), "prime-agent-repl-roundtrip-"));
+		dir = mkdtempSync(join(tmpdir(), "xenon-agent-repl-roundtrip-"));
 		snapshotPath = join(dir, "session.dill");
 		manifestPath = join(dir, "session.json");
 	});
@@ -77,7 +80,7 @@ describeIfKernel("repl kernel state snapshot round-trip (real runtime)", { tags:
 	}, 60_000);
 
 	it("treats a missing snapshot as an empty restore (clean start)", async () => {
-		const freshDir = mkdtempSync(join(tmpdir(), "prime-agent-repl-state-empty-"));
+		const freshDir = mkdtempSync(join(tmpdir(), "xenon-agent-repl-state-empty-"));
 		const manager = new ReplKernelManager({
 			python: python as string,
 			cwd: freshDir,
@@ -95,7 +98,7 @@ describeIfKernel("repl kernel state snapshot round-trip (real runtime)", { tags:
 	it("restores a snapshot artifact containing IPython-injected blobs, skipping those names", async () => {
 		// Synthesize the artifact shape an IPython-kernel snapshot writes: a dict of
 		// dill blobs including In/Out/get_ipython entries.
-		const ipythonArtifactDir = mkdtempSync(join(tmpdir(), "prime-agent-repl-ipython-artifact-"));
+		const ipythonArtifactDir = mkdtempSync(join(tmpdir(), "xenon-agent-repl-ipython-artifact-"));
 		const ipythonArtifactPath = join(ipythonArtifactDir, "kernel-state.dill");
 		const buildScript = [
 			"import dill",
@@ -131,7 +134,7 @@ describeIfKernel("repl kernel state snapshot round-trip (real runtime)", { tags:
 	}, 60_000);
 
 	it("lists live user-defined names, filtering internals and live handles", async () => {
-		const listDir = mkdtempSync(join(tmpdir(), "prime-agent-repl-state-list-"));
+		const listDir = mkdtempSync(join(tmpdir(), "xenon-agent-repl-state-list-"));
 		const manager = new ReplKernelManager({ python: python as string, cwd: listDir });
 		try {
 			expect(await manager.listNamespaceNames()).toBeNull();
@@ -147,7 +150,7 @@ describeIfKernel("repl kernel state snapshot round-trip (real runtime)", { tags:
 	}, 60_000);
 
 	it("prunes oversized variables via a compaction snapshot", async () => {
-		const boundedDir = mkdtempSync(join(tmpdir(), "prime-agent-repl-state-bounded-"));
+		const boundedDir = mkdtempSync(join(tmpdir(), "xenon-agent-repl-state-bounded-"));
 		const manager = new ReplKernelManager({
 			python: python as string,
 			cwd: boundedDir,
@@ -176,7 +179,7 @@ describeIfKernel("repl kernel state snapshot round-trip (real runtime)", { tags:
 	}, 60_000);
 
 	it("auto-snapshots after a successful execution (debounced)", async () => {
-		const autoDir = mkdtempSync(join(tmpdir(), "prime-agent-repl-state-auto-"));
+		const autoDir = mkdtempSync(join(tmpdir(), "xenon-agent-repl-state-auto-"));
 		const autoPath = join(autoDir, "auto.dill");
 		const manager = new ReplKernelManager({
 			python: python as string,

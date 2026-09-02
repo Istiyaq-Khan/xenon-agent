@@ -114,7 +114,7 @@ vi.mock("../src/core/session-lease.js", async (importOriginal) => {
 	};
 });
 
-const supervisorRegistryDirEnv = "PRIME_AGENT_INTERNAL_DAEMON_SUPERVISOR_REGISTRY_DIR";
+const supervisorRegistryDirEnv = "XENON_AGENT_INTERNAL_DAEMON_SUPERVISOR_REGISTRY_DIR";
 const previousSupervisorRegistryDir = process.env[supervisorRegistryDirEnv];
 const supervisorRegistryDirs = new Set<string>();
 
@@ -260,7 +260,7 @@ const recoveryEligibilityInvalidations: Array<{
 ];
 
 function createHarness(canConnect: () => Promise<boolean>): SupervisorMonitorHarness {
-	const registryDir = mkdtempSync(join(tmpdir(), "prime-supervisor-registry-test-"));
+	const registryDir = mkdtempSync(join(tmpdir(), "xenon-supervisor-registry-test-"));
 	supervisorRegistryDirs.add(registryDir);
 	process.env[supervisorRegistryDirEnv] = registryDir;
 	return Object.assign(Object.create(AgentDaemon.prototype), {
@@ -525,7 +525,7 @@ describe("daemon worker supervisor monitoring", () => {
 		workerLaunchTestState.capture = true;
 		workerLaunchTestState.forceMissingProcessStartId = true;
 		workerLaunchTestState.fixtureMode = "rollback-gate";
-		const root = mkdtempSync(join(tmpdir(), "prime-supervisor-launch-gate-test-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-supervisor-launch-gate-test-"));
 		const gateMarkerPath = join(root, "committed-gate");
 		workerLaunchTestState.gateMarkerPath = gateMarkerPath;
 		const descriptorDir = join(root, "descriptors");
@@ -581,7 +581,7 @@ describe("daemon worker supervisor monitoring", () => {
 	});
 
 	it("rolls back promptly when the child closes its startup gate before commit", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-supervisor-closed-gate-test-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-supervisor-closed-gate-test-"));
 		const descriptorDir = join(root, "descriptors");
 		mkdirSync(descriptorDir, { recursive: true });
 		supervisorRegistryDirs.add(root);
@@ -636,7 +636,7 @@ describe("daemon worker supervisor monitoring", () => {
 	});
 
 	it("commits the startup marker after durable worker publication", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-supervisor-committed-gate-test-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-supervisor-committed-gate-test-"));
 		const descriptorDir = join(root, "descriptors");
 		const markerPath = join(root, "startup-marker");
 		mkdirSync(descriptorDir, { recursive: true });
@@ -696,7 +696,7 @@ describe("daemon worker supervisor monitoring", () => {
 	});
 
 	it("rolls back a published worker when shutdown admission and rollback persistence fail", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-supervisor-cancelled-launch-test-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-supervisor-cancelled-launch-test-"));
 		const descriptorDir = join(root, "descriptors");
 		const markerPath = join(root, "startup-marker");
 		mkdirSync(descriptorDir, { recursive: true });
@@ -752,7 +752,7 @@ describe("daemon worker supervisor monitoring", () => {
 	});
 
 	it("defers an eligible existing recovery when descriptor restoration fails", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-supervisor-existing-restore-test-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-supervisor-existing-restore-test-"));
 		const descriptorDir = join(root, "descriptors");
 		const markerPath = join(root, "startup-marker");
 		mkdirSync(descriptorDir, { recursive: true });
@@ -815,7 +815,7 @@ describe("daemon worker supervisor monitoring", () => {
 	});
 
 	it("does not restore an existing recovery invalidated during rollback", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-supervisor-existing-stop-race-test-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-supervisor-existing-stop-race-test-"));
 		const descriptorDir = join(root, "descriptors");
 		const markerPath = join(root, "startup-marker");
 		mkdirSync(descriptorDir, { recursive: true });
@@ -960,7 +960,7 @@ describe("daemon worker supervisor monitoring", () => {
 
 	it("completes shutdown without awaiting an unsignalable worker finalizer", async () => {
 		vi.useFakeTimers();
-		const root = mkdtempSync(join(tmpdir(), "prime-supervisor-shutdown-finalization-test-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-supervisor-shutdown-finalization-test-"));
 		supervisorRegistryDirs.add(root);
 		const worker = {
 			descriptor: {
@@ -3059,7 +3059,7 @@ describe("daemon worker supervisor monitoring", () => {
 	});
 
 	it("ignores malformed persisted worker descriptors", () => {
-		const descriptorDir = mkdtempSync(join(tmpdir(), "prime-supervisor-descriptor-test-"));
+		const descriptorDir = mkdtempSync(join(tmpdir(), "xenon-supervisor-descriptor-test-"));
 		try {
 			writeFileSync(
 				join(descriptorDir, "malformed.json"),
@@ -3089,7 +3089,7 @@ describe("daemon worker supervisor monitoring", () => {
 	});
 
 	it("merges persisted host settings into fresh runtime defaults", () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-supervisor-config-merge-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-supervisor-config-merge-"));
 		const descriptorDir = join(root, "workers");
 		const socketPath = join(root, "supervisor.sock");
 		const agentDir = join(root, "agent");
@@ -3131,7 +3131,7 @@ describe("daemon worker supervisor monitoring", () => {
 	});
 
 	it("migrates v1 descriptors by lifting only safe host policy fields", () => {
-		const descriptorDir = mkdtempSync(join(tmpdir(), "prime-supervisor-v1-migration-"));
+		const descriptorDir = mkdtempSync(join(tmpdir(), "xenon-supervisor-v1-migration-"));
 		const descriptorPath = join(descriptorDir, "worker-v1.json");
 		try {
 			writeFileSync(
@@ -3206,7 +3206,7 @@ describe("daemon worker supervisor monitoring", () => {
 		if (process.platform === "win32") {
 			return;
 		}
-		const descriptorDir = mkdtempSync(join(tmpdir(), "prime-supervisor-descriptor-heal-"));
+		const descriptorDir = mkdtempSync(join(tmpdir(), "xenon-supervisor-descriptor-heal-"));
 		try {
 			const now = new Date().toISOString();
 			writeFileSync(
@@ -3271,7 +3271,7 @@ describe("daemon worker supervisor monitoring", () => {
 		if (process.platform === "win32") {
 			return;
 		}
-		const root = mkdtempSync(join(tmpdir(), "prime-supervisor-namespace-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-supervisor-namespace-"));
 		try {
 			const canonical = new DaemonSupervisor(join(root, "supervisor.sock"), {
 				defaultSessionConfig: { cwd: root, agentDir: root },
@@ -3651,7 +3651,7 @@ describe("daemon worker supervisor monitoring", () => {
 				orphanProcessJournalPath: string;
 			};
 		};
-		const root = mkdtempSync(join(tmpdir(), "prime-supervisor-recovery-test-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-supervisor-recovery-test-"));
 		const journalPath = join(root, "worker.recovery.jsonl");
 		const orphanJournalPath = join(root, "worker.orphans.jsonl");
 		writeFileSync(
@@ -3766,7 +3766,7 @@ describe("daemon worker supervisor monitoring", () => {
 	});
 
 	it("replays completed journaled mutations during restart preparation without taking a mutation lease", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-supervisor-command-replay-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-supervisor-command-replay-"));
 		const commandJournal = new CommandRecoveryJournal(join(root, "commands.jsonl"));
 		const response = success("command-1", "kill");
 		commandJournal.begin("client-1", "command-1", "kill");
@@ -3815,7 +3815,7 @@ describe("daemon worker supervisor monitoring", () => {
 	});
 
 	it("rejects genuinely new mutations during restart preparation without journaling or leasing them", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-supervisor-command-reject-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-supervisor-command-reject-"));
 		const commandJournal = new CommandRecoveryJournal(join(root, "commands.jsonl"));
 		const writes: string[] = [];
 		const client = {
@@ -3896,7 +3896,7 @@ describe("daemon worker supervisor monitoring", () => {
 	});
 
 	it("limits abort admission to mutation drain", async () => {
-		const root = mkdtempSync(`/tmp/prime-update-drain-${process.pid}-`);
+		const root = mkdtempSync(`/tmp/xenon-update-drain-${process.pid}-`);
 		const socketPath = join(root, "supervisor.sock");
 		const supervisor = new DaemonSupervisor(socketPath, {
 			defaultSessionConfig: { cwd: root, agentDir: root },

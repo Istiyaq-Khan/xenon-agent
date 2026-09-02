@@ -124,7 +124,7 @@ describe("daemon supervisor side-question routing", () => {
 	});
 
 	it("rejects a protocol-6 client through the supervisor socket before state exchange", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-supervisor-old-client-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-supervisor-old-client-"));
 		const socketPath = join(root, "supervisor.sock");
 		const supervisor = new DaemonSupervisor(socketPath, {
 			defaultSessionConfig: { cwd: root, agentDir: root },

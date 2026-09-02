@@ -88,7 +88,7 @@ function makeWorker(id: string, summaries: SessionSummary[]): WorkerFixture {
 }
 
 function makeSupervisor(idleEvictionMinutes: number | "off" = 90): SupervisorInternals {
-	const directory = mkdtempSync(join(tmpdir(), "prime-supervisor-eviction-"));
+	const directory = mkdtempSync(join(tmpdir(), "xenon-supervisor-eviction-"));
 	tempDirs.push(directory);
 	mkdirSync(directory, { recursive: true });
 	writeFileSync(join(directory, "settings.json"), JSON.stringify({ idleEvictionMinutes }));

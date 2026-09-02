@@ -5,14 +5,14 @@ import { dirname, isAbsolute, join, resolve } from "node:path";
 import { appendRotatingLog, getAgentTracesLogPath, getSessionsDir, VERSION } from "../config.js";
 import { readFirstLineSync } from "../utils/file-lines.js";
 import type { AuthStorage } from "./auth-storage.js";
-import {
-	loadPrimeCliConfig,
-	PRIME_AGENT_TRACES_PROVIDER_ID,
-	PRIME_INFERENCE_PROVIDER_ID,
-	resolvePrimeAgentTracesBaseUrl,
-} from "./prime-inference-auth.js";
 import { getSessionArtifactsRoot, type SessionHeader, type SessionManager } from "./session-manager.js";
 import type { SettingsManager } from "./settings-manager.js";
+import {
+	loadXenonCliConfig,
+	resolveXenonAgentTracesBaseUrl,
+	XENON_AGENT_TRACES_PROVIDER_ID,
+	XENON_INFERENCE_PROVIDER_ID,
+} from "./xenon-inference-auth.js";
 
 const MAX_TRACE_BYTES = 20 * 1024 * 1024;
 const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
@@ -30,7 +30,7 @@ const TRACE_UPLOAD_RATE_LIMIT_SAFETY_MS = 100;
 const TRACE_UPLOAD_ALL_MIN_REQUEST_INTERVAL_MS =
 	Math.ceil(TRACE_UPLOAD_RATE_LIMIT_WINDOW_MS / TRACE_UPLOAD_RATE_LIMIT_REQUESTS) + TRACE_UPLOAD_RATE_LIMIT_SAFETY_MS;
 
-export type AgentTraceCredentialSource = "environment" | "stored" | "prime-inference" | "prime-cli";
+export type AgentTraceCredentialSource = "environment" | "stored" | "xenon-inference" | "xenon-cli";
 
 export interface AgentTraceCredential {
 	apiKey: string;
@@ -496,7 +496,7 @@ export async function previewAgentTraceFile(options: AgentTracePreviewOptions): 
 	}
 
 	const traceContext = resolveTraceContext(options.sessionFile, header);
-	const baseUrl = resolvePrimeAgentTracesBaseUrl(options.baseUrl);
+	const baseUrl = resolveXenonAgentTracesBaseUrl(options.baseUrl);
 	const git = body ? activeGitContext(body, header) : header.git;
 	const preview = body
 		? traceContentPreview(body, Math.max(256, options.maxContentChars ?? TRACE_PREVIEW_MAX_CHARS))
@@ -632,45 +632,48 @@ export async function uploadAllAgentTraces(options: AgentTraceUploadAllOptions):
 	};
 }
 
-export async function getPrimeAgentTraceCredential(
+export async function getXenonAgentTraceCredential(
 	authStorage: AuthStorage,
 	options: { reloadAuth?: boolean; configPath?: string } = {},
 ): Promise<AgentTraceCredential | undefined> {
-	const traceEnvKey = stringEnv("PRIME_AGENT_TRACES_API_KEY");
+	const xenonTraceEnvKey = stringEnv("XENON_AGENT_TRACES_API_KEY");
+	if (xenonTraceEnvKey) {
+		return { apiKey: xenonTraceEnvKey, source: "environment", label: "XENON_AGENT_TRACES_API_KEY" };
+	}
+	const traceEnvKey = stringEnv("XENON_AGENT_TRACES_API_KEY");
 	if (traceEnvKey) {
-		return { apiKey: traceEnvKey, source: "environment", label: "PRIME_AGENT_TRACES_API_KEY" };
+		return { apiKey: traceEnvKey, source: "environment", label: "XENON_AGENT_TRACES_API_KEY" };
 	}
 
 	if (options.reloadAuth !== false) {
 		authStorage.reload();
 	}
 
-	const traceKey = await authStorage.getApiKey(PRIME_AGENT_TRACES_PROVIDER_ID, { includeFallback: false });
+	const traceKey = await authStorage.getApiKey(XENON_AGENT_TRACES_PROVIDER_ID, { includeFallback: false });
 	if (traceKey) {
-		return { apiKey: traceKey, source: "stored", label: "Prime Agent Traces credential" };
+		return { apiKey: traceKey, source: "stored", label: "Xenon Agent Traces credential" };
 	}
 
-	const primeEnvKey = stringEnv("PRIME_API_KEY");
-	if (primeEnvKey) {
-		return { apiKey: primeEnvKey, source: "environment", label: "PRIME_API_KEY" };
+	const xenonEnvKey = stringEnv("XENON_API_KEY");
+	if (xenonEnvKey) {
+		return { apiKey: xenonEnvKey, source: "environment", label: "XENON_API_KEY" };
 	}
 
-	const primeCredential = authStorage.get(PRIME_INFERENCE_PROVIDER_ID);
-	if (primeCredential) {
-		const primeKey = await authStorage.getApiKey(PRIME_INFERENCE_PROVIDER_ID, { includeFallback: false });
-		if (primeKey) {
-			return { apiKey: primeKey, source: "prime-inference", label: "Prime Inference credential" };
+	const xenonCredential = authStorage.get(XENON_INFERENCE_PROVIDER_ID);
+	if (xenonCredential) {
+		const xenonKey = await authStorage.getApiKey(XENON_INFERENCE_PROVIDER_ID, { includeFallback: false });
+		if (xenonKey) {
+			return { apiKey: xenonKey, source: "xenon-inference", label: "Xenon Inference credential" };
 		}
 	}
 
-	const primeCliKey = loadPrimeCliConfig(options.configPath).apiKey;
-	if (primeCliKey) {
-		return { apiKey: primeCliKey, source: "prime-cli", label: "Prime CLI credential" };
+	const xenonCliKey = loadXenonCliConfig(options.configPath).apiKey;
+	if (xenonCliKey) {
+		return { apiKey: xenonCliKey, source: "xenon-cli", label: "Xenon CLI credential" };
 	}
 
 	return undefined;
 }
-
 async function getAgentTracesEnabled(
 	options: Pick<AgentTraceUploadOptions, "reloadConfig" | "settingsManager">,
 ): Promise<boolean> {
@@ -709,7 +712,7 @@ function logAgentTraceOutcome(sessionFile: string | undefined, result: AgentTrac
 			line = `upload skipped: ${result.message}`;
 			break;
 		case "missing_credentials":
-			line = "upload skipped: no Prime credential configured (run /traces login)";
+			line = "upload skipped: no Xenon credential configured (run /traces login)";
 			break;
 		default:
 			return;
@@ -752,7 +755,7 @@ async function performAgentTraceUpload(
 		return { status: "invalid_session", message: "Session file is missing a valid session header" };
 	}
 
-	const credential = await getPrimeAgentTraceCredential(options.authStorage, {
+	const credential = await getXenonAgentTraceCredential(options.authStorage, {
 		configPath: options.configPath,
 		reloadAuth: options.reloadConfig !== false,
 	});
@@ -799,7 +802,7 @@ async function performAgentTraceUpload(
 		return { status: "disabled" };
 	}
 
-	const baseUrl = resolvePrimeAgentTracesBaseUrl(options.baseUrl);
+	const baseUrl = resolveXenonAgentTracesBaseUrl(options.baseUrl);
 	const url = `${baseUrl}/api/v1/agent-traces/sessions/${encodeURIComponent(header.id)}`;
 	const fetchFn = options.fetchFn ?? fetch;
 

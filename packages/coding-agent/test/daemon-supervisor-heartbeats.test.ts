@@ -22,7 +22,7 @@ afterEach(() => {
 });
 
 function createSupervisorHarness(): SupervisorHarness {
-	const directory = mkdtempSync(join(tmpdir(), "prime-supervisor-heartbeats-"));
+	const directory = mkdtempSync(join(tmpdir(), "xenon-supervisor-heartbeats-"));
 	tempDirs.push(directory);
 	return new DaemonSupervisor(join(directory, "daemon.sock"), {
 		defaultSessionConfig: { agentDir: directory, cwd: directory },

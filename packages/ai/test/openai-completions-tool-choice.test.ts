@@ -1104,8 +1104,8 @@ describe("openai-completions tool_choice", () => {
 		expect((payload as { reasoning?: unknown }).reasoning).toBeUndefined();
 	});
 
-	it("distinguishes omitted reasoning from explicit off for Prime effort models", async () => {
-		const model = getModel("prime-inference", "moonshotai/kimi-k3")!;
+	it("distinguishes omitted reasoning from explicit off for Xenon effort models", async () => {
+		const model = getModel("xenon-inference", "moonshotai/kimi-k3")!;
 		const context = { messages: [{ role: "user" as const, content: "Hi", timestamp: Date.now() }] };
 		let payload: unknown;
 

@@ -13,7 +13,7 @@ function writeExecutable(filePath: string, content: string): void {
 
 describe("ReplKernelManager startup", () => {
 	beforeEach(() => {
-		tempDir = mkdtempSync(join(tmpdir(), "prime-agent-repl-startup-"));
+		tempDir = mkdtempSync(join(tmpdir(), "xenon-agent-repl-startup-"));
 	});
 
 	afterEach(() => {

@@ -23,9 +23,9 @@ import { emptyGoalState, type GoalState } from "../src/core/goals.js";
 import { KeybindingsManager } from "../src/core/keybindings.js";
 import { createSessionSlashCommandMessage, createSessionSlashCommandResultMessage } from "../src/core/messages.js";
 import type { ModelRegistry } from "../src/core/model-registry.js";
-import { PRIME_INFERENCE_PROVIDER_ID } from "../src/core/prime-inference-auth.js";
 import { SettingsManager } from "../src/core/settings-manager.js";
 import { emptyUsage } from "../src/core/usage.js";
+import { XENON_INFERENCE_PROVIDER_ID } from "../src/core/xenon-inference-auth.js";
 import { InProcessAgentConnection } from "../src/modes/agent-connection/in-process-agent-connection.js";
 import type {
 	AgentConnectionExtensionUiRequest,
@@ -1223,7 +1223,7 @@ describe("InteractiveMode MCP command", () => {
 		await handleMcpCommand.call(fakeThis, "add remote --url https://example.test/mcp --oauth");
 
 		expect(normalizeRenderedOutput(fakeThis.chatContainer)).toContain(
-			"Restart Prime Agent, then run /mcp login remote to connect.",
+			"Restart Xenon Agent, then run /mcp login remote to connect.",
 		);
 	});
 
@@ -2187,7 +2187,7 @@ describe("InteractiveMode startup onboarding warnings", () => {
 		getModelFallbackWarningAction,
 	});
 
-	const liveModel = { id: "gpt-5.5", provider: "prime-inference" } as AgentConnectionModel;
+	const liveModel = { id: "gpt-5.5", provider: "xenon-inference" } as AgentConnectionModel;
 
 	test("suppresses the no-model warning when the live session has a model", () => {
 		const fakeThis = createHarness({ currentModel: liveModel });
@@ -2207,7 +2207,7 @@ describe("InteractiveMode startup onboarding warnings", () => {
 		expect(
 			getModelFallbackWarningAction.call(
 				fakeThis,
-				"Could not restore model anthropic/claude-old. Using prime-inference/openai/gpt-5.5.",
+				"Could not restore model anthropic/claude-old. Using xenon-inference/openai/gpt-5.5.",
 			),
 		).toBe("show");
 	});
@@ -3249,7 +3249,7 @@ describe("InteractiveMode session switch command catalog", () => {
 	});
 });
 
-describe("InteractiveMode Prime CLI onboarding", () => {
+describe("InteractiveMode Xenon CLI onboarding", () => {
 	type OnboardingSplashHandle = {
 		showProgress(message: string): void;
 		dismiss(): void;
@@ -3258,7 +3258,7 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 		shouldRunOnboarding(): boolean;
 		markOnboardingShown(): void;
 		runStartupOnboarding(): Promise<boolean>;
-		runOnboardingFlow(showPrimeCliSplash?: boolean): Promise<void>;
+		runOnboardingFlow(showXenonCliSplash?: boolean): Promise<void>;
 		applySelectedModel(model: AgentConnectionModel): Promise<void>;
 		prepareForModelSelectionAfterLogin(authResult: AuthenticationResult): Promise<boolean>;
 		setupAutocompleteProvider(): void;
@@ -3292,7 +3292,7 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 		checkDaxnutsEasterEgg?: (model: { provider: string; id: string }) => void;
 		findExactModelMatch?: (searchTerm: string) => Promise<AgentConnectionModel | undefined>;
 		showOnboardingSplash?: (continueActionLabel?: string) => Promise<OnboardingSplashHandle | undefined>;
-		createAuthFlows?: () => { runPrimeInferenceLogin(): Promise<AuthenticationResult> };
+		createAuthFlows?: () => { runXenonInferenceLogin(): Promise<AuthenticationResult> };
 		showConfigurationMenu?: (tab: "providers" | "models" | "mcp-connections") => Promise<void>;
 		getModelCandidates?: () => Promise<AgentConnectionModel[]>;
 	};
@@ -3331,11 +3331,11 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 		};
 	}
 
-	const primeModel: AgentConnectionModel = {
+	const xenonModel: AgentConnectionModel = {
 		id: "openai/gpt-5.5",
 		name: "GPT-5.5",
 		api: "openai-completions",
-		provider: PRIME_INFERENCE_PROVIDER_ID,
+		provider: XENON_INFERENCE_PROVIDER_ID,
 		baseUrl: "https://api.pinference.ai/api/v1",
 		reasoning: true,
 		input: ["text"],
@@ -3390,7 +3390,7 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 			await vi.advanceTimersByTimeAsync(250);
 			expect(prompt).not.toHaveBeenCalled();
 
-			model = primeModel;
+			model = xenonModel;
 			const userSubmission = fakeThis.defaultEditor.onSubmit?.("user");
 			await vi.advanceTimersByTimeAsync(1_250);
 			await userSubmission;
@@ -3466,7 +3466,7 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 						initialPrompts: [{ text: "later [image #2]", images: [secondImage] }, { text: "last [image #4]" }],
 					},
 					{
-						getCurrentModel: () => primeModel,
+						getCurrentModel: () => xenonModel,
 						getUserInput: vi.fn(() => inputDone.promise),
 						agentConnection: submitHarness.agentConnection,
 					},
@@ -3519,7 +3519,7 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 			createStartupRunHarness(
 				{ initialMessages: ["owned startup", "next startup"] },
 				{
-					getCurrentModel: () => primeModel,
+					getCurrentModel: () => xenonModel,
 					getUserInput: vi.fn(() => inputDone.promise),
 					agentConnection: submitHarness.agentConnection,
 				},
@@ -3594,7 +3594,7 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 				if (scenario === "typing") editorText = "typing during startup wait";
 				const duplicate = scenario === "Alt+Enter" ? submit() : undefined;
 				expect(prompt).not.toHaveBeenCalled();
-				model = primeModel;
+				model = xenonModel;
 				await vi.advanceTimersByTimeAsync(250);
 				expect(prompt.mock.calls.map(([message]) => message)).toEqual(["startup"]);
 				await vi.advanceTimersByTimeAsync(249);
@@ -3642,7 +3642,7 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 			createStartupRunHarness(
 				{ initialMessage: "startup" },
 				{
-					getCurrentModel: () => primeModel,
+					getCurrentModel: () => xenonModel,
 					getUserInput: vi.fn(() => inputDone.promise),
 				},
 			),
@@ -3924,7 +3924,7 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 		const fakeThis = createStartupRunHarness(
 			{},
 			{
-				getCurrentModel: vi.fn(() => primeModel),
+				getCurrentModel: vi.fn(() => xenonModel),
 				getUserInput: vi.fn(async () => undefined),
 				agentConnection: { prompt },
 				returnToAgentsViewRequested: false,
@@ -3936,11 +3936,11 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 		expect(prompt).not.toHaveBeenCalled();
 	});
 
-	function createPrimeCliHarness(shown: boolean): OnboardingFake {
+	function createXenonCliHarness(shown: boolean): OnboardingFake {
 		const fakeThis = Object.create(InteractiveMode.prototype) as OnboardingFake;
-		fakeThis.connectionState = createConnectionState({ model: primeModel });
+		fakeThis.connectionState = createConnectionState({ model: xenonModel });
 		fakeThis.agentConnection = {
-			getAvailableModels: vi.fn(async () => [primeModel]),
+			getAvailableModels: vi.fn(async () => [xenonModel]),
 		};
 		fakeThis.uiServices = {
 			modelRegistry: {
@@ -3950,7 +3950,7 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 				getProviderAuthStatus: vi.fn(
 					(): AuthStatus => ({
 						configured: false,
-						source: "prime_cli",
+						source: "xenon_cli",
 					}),
 				),
 			},
@@ -3961,25 +3961,25 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 				flush: vi.fn(async () => {}),
 			},
 		};
-		fakeThis.getModelCandidates = vi.fn(async () => [primeModel]);
+		fakeThis.getModelCandidates = vi.fn(async () => [xenonModel]);
 		return fakeThis;
 	}
 
-	test("shows onboarding when the selected Prime model is backed by Prime CLI auth", () => {
-		const fakeThis = createPrimeCliHarness(false);
+	test("shows onboarding when the selected Xenon model is backed by Xenon CLI auth", () => {
+		const fakeThis = createXenonCliHarness(false);
 
 		expect(shouldRunOnboarding.call(fakeThis)).toBe(true);
 		expect(fakeThis.uiServices.modelRegistry.refresh).toHaveBeenCalledTimes(1);
 	});
 
-	test("skips Prime CLI onboarding after it has been shown", () => {
-		const fakeThis = createPrimeCliHarness(true);
+	test("skips Xenon CLI onboarding after it has been shown", () => {
+		const fakeThis = createXenonCliHarness(true);
 
 		expect(shouldRunOnboarding.call(fakeThis)).toBe(false);
 	});
 
 	test("persists that onboarding was shown once", () => {
-		const fakeThis = createPrimeCliHarness(false);
+		const fakeThis = createXenonCliHarness(false);
 
 		markOnboardingShown.call(fakeThis);
 
@@ -3989,7 +3989,7 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 	test("persists onboarding before opening the one-shot flow", async () => {
 		let shown = false;
 		let flushed = false;
-		const fakeThis = createPrimeCliHarness(false);
+		const fakeThis = createXenonCliHarness(false);
 		fakeThis.uiServices.settingsManager.getOnboardingShown = vi.fn(() => shown);
 		fakeThis.uiServices.settingsManager.setOnboardingShown = vi.fn((nextShown: boolean) => {
 			shown = nextShown;
@@ -3997,8 +3997,8 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 		fakeThis.uiServices.settingsManager.flush = vi.fn(async () => {
 			flushed = true;
 		});
-		fakeThis.runOnboardingFlow = vi.fn(async (showPrimeCliSplash?: boolean) => {
-			expect(showPrimeCliSplash).toBe(true);
+		fakeThis.runOnboardingFlow = vi.fn(async (showXenonCliSplash?: boolean) => {
+			expect(showXenonCliSplash).toBe(true);
 			expect(shown).toBe(true);
 			expect(flushed).toBe(true);
 		});
@@ -4010,8 +4010,8 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 		expect(fakeThis.runOnboardingFlow).toHaveBeenCalledWith(true);
 	});
 
-	test("cancelled Prime CLI splash exits onboarding before opening configuration", async () => {
-		const fakeThis = createPrimeCliHarness(false);
+	test("cancelled Xenon CLI splash exits onboarding before opening configuration", async () => {
+		const fakeThis = createXenonCliHarness(false);
 		fakeThis.showOnboardingSplash = vi.fn(async () => undefined);
 		fakeThis.showConfigurationMenu = vi.fn(async () => {});
 
@@ -4020,8 +4020,8 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 		expect(fakeThis.showConfigurationMenu).not.toHaveBeenCalled();
 	});
 
-	test("opens the Models tab after the Prime CLI splash", async () => {
-		const fakeThis = createPrimeCliHarness(false);
+	test("opens the Models tab after the Xenon CLI splash", async () => {
+		const fakeThis = createXenonCliHarness(false);
 		const configuration = createDeferred<void>();
 		const dismiss = vi.fn();
 		fakeThis.showOnboardingSplash = vi.fn(async () => ({ showProgress: vi.fn(), dismiss }));
@@ -4040,9 +4040,9 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 	});
 
 	test("opens the Models tab when models are already available", async () => {
-		const fakeThis = createPrimeCliHarness(false);
+		const fakeThis = createXenonCliHarness(false);
 		fakeThis.connectionState = createConnectionState({ model: undefined });
-		fakeThis.getModelCandidates = vi.fn(async () => [primeModel]);
+		fakeThis.getModelCandidates = vi.fn(async () => [xenonModel]);
 		fakeThis.showConfigurationMenu = vi.fn(async () => {});
 
 		await expect(runOnboardingFlow.call(fakeThis, false)).resolves.toBeUndefined();
@@ -4051,18 +4051,18 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 		expect(fakeThis.showConfigurationMenu).toHaveBeenCalledWith("models");
 	});
 
-	test("opens Prime login before the Models tab when no models are available", async () => {
-		const fakeThis = createPrimeCliHarness(false);
+	test("opens Xenon login before the Models tab when no models are available", async () => {
+		const fakeThis = createXenonCliHarness(false);
 		fakeThis.connectionState = createConnectionState({ model: undefined });
 		fakeThis.getModelCandidates = vi.fn(async () => []);
 		const showProgress = vi.fn();
 		const dismiss = vi.fn();
 		fakeThis.showOnboardingSplash = vi.fn(async () => ({ showProgress, dismiss }));
 		fakeThis.createAuthFlows = vi.fn(() => ({
-			runPrimeInferenceLogin: vi.fn(async () => ({
+			runXenonInferenceLogin: vi.fn(async () => ({
 				status: "success" as const,
-				providerId: PRIME_INFERENCE_PROVIDER_ID,
-				providerName: "Prime Inference",
+				providerId: XENON_INFERENCE_PROVIDER_ID,
+				providerName: "Xenon Inference",
 				authType: "api_key" as const,
 				kind: "provider" as const,
 			})),
@@ -4075,7 +4075,7 @@ describe("InteractiveMode Prime CLI onboarding", () => {
 		await flushAsyncWork();
 
 		expect(fakeThis.showOnboardingSplash).toHaveBeenCalledWith();
-		expect(showProgress).toHaveBeenNthCalledWith(1, "Signing in to Prime Intellect...");
+		expect(showProgress).toHaveBeenNthCalledWith(1, "Signing in to Xenon Intellect...");
 		expect(showProgress).toHaveBeenNthCalledWith(2, "Preparing models...");
 		expect(fakeThis.prepareForModelSelectionAfterLogin).toHaveBeenCalledTimes(1);
 		expect(fakeThis.showConfigurationMenu).toHaveBeenCalledWith("models");
@@ -4105,11 +4105,11 @@ describe("InteractiveMode post-login model preparation", () => {
 
 	const prepareForModelSelectionAfterLogin = (InteractiveMode.prototype as unknown as LoginHarness)
 		.prepareForModelSelectionAfterLogin;
-	const loginPrimeModel: AgentConnectionModel = {
+	const loginXenonModel: AgentConnectionModel = {
 		id: "openai/gpt-5.5",
 		name: "GPT-5.5",
 		api: "openai-completions",
-		provider: PRIME_INFERENCE_PROVIDER_ID,
+		provider: XENON_INFERENCE_PROVIDER_ID,
 		baseUrl: "https://api.pinference.ai/api/v1",
 		reasoning: true,
 		input: ["text"],
@@ -4118,8 +4118,8 @@ describe("InteractiveMode post-login model preparation", () => {
 		maxTokens: 128000,
 	} as AgentConnectionModel;
 
-	test("persists GLM 5.2 before model selection after Prime Inference login", async () => {
-		const fallbackModel = { ...loginPrimeModel, id: "z-ai/glm-5.2", name: "GLM 5.2" };
+	test("persists GLM 5.2 before model selection after Xenon Inference login", async () => {
+		const fallbackModel = { ...loginXenonModel, id: "z-ai/glm-5.2", name: "GLM 5.2" };
 		const flushSettings = vi.fn(async () => {});
 		const fakeThis = Object.create(InteractiveMode.prototype) as LoginHarness;
 		fakeThis.invalidateConnectionModels = vi.fn();
@@ -4138,8 +4138,8 @@ describe("InteractiveMode post-login model preparation", () => {
 		await expect(
 			prepareForModelSelectionAfterLogin.call(fakeThis, {
 				status: "success",
-				providerId: PRIME_INFERENCE_PROVIDER_ID,
-				providerName: "Prime Inference",
+				providerId: XENON_INFERENCE_PROVIDER_ID,
+				providerName: "Xenon Inference",
 				authType: "api_key",
 				kind: "provider",
 			}),
@@ -4153,7 +4153,7 @@ describe("InteractiveMode post-login model preparation", () => {
 	test("preserves refreshed models after any model-provider login", async () => {
 		const fakeThis = Object.create(InteractiveMode.prototype) as LoginHarness;
 		fakeThis.invalidateConnectionModels = vi.fn();
-		fakeThis.getCurrentModel = vi.fn(() => loginPrimeModel);
+		fakeThis.getCurrentModel = vi.fn(() => loginXenonModel);
 		fakeThis.applySelectedModel = vi.fn(async () => {});
 		fakeThis.showError = vi.fn();
 		fakeThis.uiServices = {
@@ -4183,12 +4183,12 @@ describe("InteractiveMode post-login model preparation", () => {
 describe("InteractiveMode splash cwd display", () => {
 	test("formats home-relative cwd paths", () => {
 		expect(formatSplashCwd(homedir())).toBe("~");
-		expect(formatSplashCwd(path.join(homedir(), "pi", "prime-agent"))).toBe("~/pi/prime-agent");
+		expect(formatSplashCwd(path.join(homedir(), "pi", "xenon-agent"))).toBe("~/pi/xenon-agent");
 	});
 
 	test("keeps worktree paths as cwd paths instead of repo branch labels", () => {
-		expect(formatSplashCwd(path.join(homedir(), "pi", "prime-agent", ".worktrees", "improve-onboarding"))).toBe(
-			"~/pi/prime-agent/.worktrees/improve-onboarding",
+		expect(formatSplashCwd(path.join(homedir(), "pi", "xenon-agent", ".worktrees", "improve-onboarding"))).toBe(
+			"~/pi/xenon-agent/.worktrees/improve-onboarding",
 		);
 	});
 });

@@ -151,16 +151,16 @@ describe("ModelRegistry", () => {
 			}
 		});
 
-		test("prime inference requests include selected Prime Agent team header", async () => {
-			const primeAuthStorage = AuthStorage.inMemory({
-				"prime-inference": {
+		test("xenon inference requests include selected Xenon Agent team header", async () => {
+			const xenonAuthStorage = AuthStorage.inMemory({
+				"xenon-inference": {
 					type: "api_key",
 					key: "agent-key",
-					primeTeam: { teamId: "team-1", name: "Research" },
+					xenonTeam: { teamId: "team-1", name: "Research" },
 				},
 			});
-			const registry = ModelRegistry.create(primeAuthStorage, modelsJsonPath);
-			const model = getModelsForProvider(registry, "prime-inference")[0];
+			const registry = ModelRegistry.create(xenonAuthStorage, modelsJsonPath);
+			const model = getModelsForProvider(registry, "xenon-inference")[0];
 			expect(model).toBeDefined();
 
 			const auth = await registry.getApiKeyAndHeaders(model!);
@@ -168,7 +168,7 @@ describe("ModelRegistry", () => {
 			expect(auth).toEqual({
 				ok: true,
 				apiKey: "agent-key",
-				headers: { "X-Prime-Team-ID": "team-1" },
+				headers: { "X-Xenon-Team-ID": "team-1" },
 			});
 		});
 
@@ -1096,10 +1096,10 @@ describe("ModelRegistry", () => {
 	});
 
 	describe("auth refresh across processes", () => {
-		test("model catalog includes unauthenticated public models and hides private Prime routes", async () => {
-			const savedPrimeApiKey = process.env.PRIME_API_KEY;
+		test("model catalog includes unauthenticated public models and hides private Xenon routes", async () => {
+			const savedXenonApiKey = process.env.XENON_API_KEY;
 			const savedOpenAiApiKey = process.env.OPENAI_API_KEY;
-			delete process.env.PRIME_API_KEY;
+			delete process.env.XENON_API_KEY;
 			delete process.env.OPENAI_API_KEY;
 			try {
 				const registry = ModelRegistry.create(authStorage, modelsJsonPath);
@@ -1109,7 +1109,7 @@ describe("ModelRegistry", () => {
 				expect(unauthenticated.configuredProviders).not.toContain("openai");
 				expect(
 					unauthenticated.models.some(
-						(model) => model.provider === "prime-inference" && model.id.startsWith("internal/"),
+						(model) => model.provider === "xenon-inference" && model.id.startsWith("internal/"),
 					),
 				).toBe(false);
 
@@ -1117,8 +1117,8 @@ describe("ModelRegistry", () => {
 				const authenticated = await registry.refreshModelCatalog();
 				expect(authenticated.configuredProviders).toContain("openai");
 			} finally {
-				if (savedPrimeApiKey !== undefined) {
-					process.env.PRIME_API_KEY = savedPrimeApiKey;
+				if (savedXenonApiKey !== undefined) {
+					process.env.XENON_API_KEY = savedXenonApiKey;
 				}
 				if (savedOpenAiApiKey !== undefined) {
 					process.env.OPENAI_API_KEY = savedOpenAiApiKey;
@@ -1127,20 +1127,20 @@ describe("ModelRegistry", () => {
 		});
 
 		test("refresh() picks up credentials written by another process", () => {
-			const savedEnvKey = process.env.PRIME_API_KEY;
-			delete process.env.PRIME_API_KEY;
+			const savedEnvKey = process.env.XENON_API_KEY;
+			delete process.env.XENON_API_KEY;
 			try {
 				const registry = ModelRegistry.create(authStorage, modelsJsonPath);
-				expect(registry.getAvailable().some((m) => m.provider === "prime-inference")).toBe(false);
+				expect(registry.getAvailable().some((m) => m.provider === "xenon-inference")).toBe(false);
 
 				const otherProcessAuth = AuthStorage.create(join(tempDir, "auth.json"));
-				otherProcessAuth.set("prime-inference", { type: "api_key", key: "test-key" });
+				otherProcessAuth.set("xenon-inference", { type: "api_key", key: "test-key" });
 
 				registry.refresh();
-				expect(registry.getAvailable().some((m) => m.provider === "prime-inference")).toBe(true);
+				expect(registry.getAvailable().some((m) => m.provider === "xenon-inference")).toBe(true);
 			} finally {
 				if (savedEnvKey !== undefined) {
-					process.env.PRIME_API_KEY = savedEnvKey;
+					process.env.XENON_API_KEY = savedEnvKey;
 				}
 			}
 		});

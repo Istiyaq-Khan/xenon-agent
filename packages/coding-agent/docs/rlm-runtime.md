@@ -1,6 +1,6 @@
 # RLM Runtime Architecture
 
-Prime Agent gives each agent session a persistent Python REPL kernel and a native recursive sub-agent interface. The Python `rlm` package is a model-facing shim; the TypeScript host owns child execution, persistence, usage accounting, and lifecycle.
+Xenon Agent gives each agent session a persistent Python REPL kernel and a native recursive sub-agent interface. The Python `rlm` package is a model-facing shim; the TypeScript host owns child execution, persistence, usage accounting, and lifecycle.
 
 ## Architecture
 
@@ -9,7 +9,7 @@ flowchart TD
     session["AgentSession · TypeScript<br/>Python REPL tool + host request handlers"]
     manager["ReplKernelManager · TypeScript<br/>execution + host-request dispatch"]
     kernel["REPL runtime process · Python"]
-    runtime["prime-agent-runtime<br/>rlm module + Python skills"]
+    runtime["xenon-agent-runtime<br/>rlm module + Python skills"]
     code["Model-executed Python code"]
 
     session -->|"owns"| manager
@@ -67,7 +67,7 @@ sequenceDiagram
 | `src/core/tools/ipython.ts` | Agent tool wrapper, lazy kernel provisioning, namespace bootstrap, and output shaping. |
 | `src/core/agent-session.ts` | RLM policy, child creation, registry, usage attribution, cancellation, and goal handlers. |
 | `src/core/rlm-runtime.ts` | Typed request/spawn-handle validation for `rlm.run`, model discovery, list, and delete. |
-| `prime-agent-runtime/src/rlm/` | Python shim, handle types, callable `rlm`, and session-backed harness state. |
+| `xenon-agent-runtime/src/rlm/` | Python shim, handle types, callable `rlm`, and session-backed harness state. |
 
 The Python side does not call providers or implement an agent loop.
 
@@ -75,13 +75,13 @@ The Python side does not call providers or implement an agent loop.
 
 The kernel is created lazily on first Python REPL use. Python resolution is:
 
-1. `PRIME_AGENT_KERNEL_PYTHON`, when it has a current `prime-agent-runtime`;
-2. `~/.prime/agent/kernel-venv/bin/python`, bootstrapped with `uv`; or
-3. the XDG data location when `~/.prime` is not writable.
+1. `XENON_AGENT_KERNEL_PYTHON`, when it has a current `xenon-agent-runtime`;
+2. `~/.xenon-agent/kernel-venv/bin/python`, bootstrapped with `uv`; or
+3. the XDG data location when `~/.xenon-agent` is not writable.
 
-The managed environment includes Python 3.11, `prime-agent-runtime`, `dill`, and the default Python packages. A bootstrap marker detects stale environments.
+The managed environment includes Python 3.11, `xenon-agent-runtime`, `dill`, and the default Python packages. A bootstrap marker detects stale environments.
 
-Startup spawns `python -m rlm.repl` and exchanges newline-delimited JSON over stdio: the runtime announces itself with a single `ready` event, then requests and events flow one JSON object per line (see `prime-agent-runtime/src/rlm/repl.md`).
+Startup spawns `python -m rlm.repl` and exchanges newline-delimited JSON over stdio: the runtime announces itself with a single `ready` event, then requests and events flow one JSON object per line (see `xenon-agent-runtime/src/rlm/repl.md`).
 
 The manager owns the child process and a bounded stderr tail. Shutdown sends a `shutdown` request, waits for the process to exit, and terminates it as a fallback. Persistent sessions may snapshot the kernel namespace into their session artifact directory for revival.
 
@@ -110,7 +110,7 @@ The runtime ships the call to the host as a `host_request` event and keeps its e
 
 ## Python API
 
-`prime-agent-runtime` exports:
+`xenon-agent-runtime` exports:
 
 ```python
 rlm
@@ -180,7 +180,7 @@ Registry scope follows the parent transcript. An unrelated new parent session do
 
 ## Usage and Cost Attribution
 
-The admission handle does not contain usage or completion data. Prime Agent asynchronously folds the child's assistant usage and cost into the parent assistant turn that launched it.
+The admission handle does not contain usage or completion data. Xenon Agent asynchronously folds the child's assistant usage and cost into the parent assistant turn that launched it.
 
 The parent transcript persists a `child_usage_attributed` entry containing:
 
@@ -194,7 +194,7 @@ On reload, the aggregate is reapplied to the parent message. Context-tree report
 
 `rlm.harness` is a persisted state ledger for prompt notes, memories, reusable skill descriptions, sub-agent specifications, and refinement events. It is not a second execution engine.
 
-Session-local state lives in the session artifact directory under `harness/harness_state.json`. Explicitly global entries live under `~/.prime/agent/harness/`. The Python store reloads after external modification so host-side `/refine` writes and kernel writes do not overwrite each other.
+Session-local state lives in the session artifact directory under `harness/harness_state.json`. Explicitly global entries live under `~/.xenon-agent/harness/`. The Python store reloads after external modification so host-side `/refine` writes and kernel writes do not overwrite each other.
 
 `/refine` runs a dedicated review over the current trajectory and applies small create/update/delete edits. Rollback uses recorded before/after snapshots. The base system prompt remains immutable; refinements are supplemental state.
 
@@ -215,7 +215,7 @@ Goal state, persistence, token and wall-clock accounting, and continuation promp
 For a persisted root session, the relevant layout is:
 
 ```text
-~/.prime/agent/
+~/.xenon-agent/
   sessions/
     <root-session-id>.jsonl
   session-artifacts/
@@ -242,7 +242,7 @@ Provider credentials are resolved by the TypeScript host. The bounded model cata
 
 | Failure | Behavior |
 |---|---|
-| Managed runtime is missing | Kernel bootstrap rebuilds it; a custom `PRIME_AGENT_KERNEL_PYTHON` without a current `prime-agent-runtime` is rejected at kernel startup. |
+| Managed runtime is missing | Kernel bootstrap rebuilds it; a custom `XENON_AGENT_KERNEL_PYTHON` without a current `xenon-agent-runtime` is rejected at kernel startup. |
 | Depth limit reached | The host rejects the `rlm.run` request; the error reply raises in Python. |
 | Unsupported options | Host rejects the request. |
 | Requested model unavailable | Spawn fails instead of substituting another model. |

@@ -18,7 +18,7 @@ describe("agent connection snapshots", () => {
 						{
 							name: "commit",
 							description: "Commit changes",
-							filePath: "/workspace/project/.prime/skills/commit/SKILL.md",
+							filePath: "/workspace/project/.xenon/skills/commit/SKILL.md",
 						},
 					],
 					diagnostics: [],
@@ -32,7 +32,7 @@ describe("agent connection snapshots", () => {
 					diagnostics: [],
 				}),
 				getExtensions: () => ({
-					extensions: [{ path: "/opt/prime/extensions/review/index.ts" }],
+					extensions: [{ path: "/opt/xenon/extensions/review/index.ts" }],
 					errors: [],
 				}),
 			},
@@ -52,11 +52,11 @@ describe("agent connection snapshots", () => {
 		});
 		expect(snapshot.skills[0]?.artifact).toMatchObject({
 			type: "skill",
-			logicalPath: ".prime/skills/commit/SKILL.md",
-			relativePath: ".prime/skills/commit/SKILL.md",
+			logicalPath: ".xenon/skills/commit/SKILL.md",
+			relativePath: ".xenon/skills/commit/SKILL.md",
 		});
 		expect(snapshot.extensions[0]).toMatchObject({
-			path: "/opt/prime/extensions/review/index.ts",
+			path: "/opt/xenon/extensions/review/index.ts",
 			artifact: {
 				type: "extension",
 				logicalPath: "index.ts",

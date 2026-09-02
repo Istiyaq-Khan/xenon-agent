@@ -602,13 +602,15 @@ let BUILTIN_THEMES: Record<string, ThemeJson> | undefined;
 function getBuiltinThemes(): Record<string, ThemeJson> {
 	if (!BUILTIN_THEMES) {
 		const themesDir = getThemesDir();
-		const primePath = path.join(themesDir, "prime.json");
+		const xenonPath = path.join(themesDir, "xenon.json");
 		const darkPath = path.join(themesDir, "dark.json");
 		const lightPath = path.join(themesDir, "light.json");
+		const darkTheme = JSON.parse(fs.readFileSync(darkPath, "utf-8")) as ThemeJson;
+		const lightTheme = JSON.parse(fs.readFileSync(lightPath, "utf-8")) as ThemeJson;
 		BUILTIN_THEMES = {
-			prime: JSON.parse(fs.readFileSync(primePath, "utf-8")) as ThemeJson,
-			dark: JSON.parse(fs.readFileSync(darkPath, "utf-8")) as ThemeJson,
-			light: JSON.parse(fs.readFileSync(lightPath, "utf-8")) as ThemeJson,
+			xenon: JSON.parse(fs.readFileSync(xenonPath, "utf-8")) as ThemeJson,
+			dark: darkTheme,
+			light: lightTheme,
 		};
 	}
 	return BUILTIN_THEMES;
@@ -812,8 +814,8 @@ function detectTerminalBackground(): "dark" | "light" {
 }
 
 function getDefaultTheme(): string {
-	// Prime brand is dark-first; only fall back to light when the terminal is light.
-	return detectTerminalBackground() === "light" ? "light" : "prime";
+	// Xenon brand is dark-first; only fall back to light when the terminal is light.
+	return detectTerminalBackground() === "light" ? "light" : "xenon";
 }
 
 // ============================================================================
@@ -954,7 +956,8 @@ function startThemeWatcher(): void {
 	// Only watch if it's a custom theme (not built-in)
 	if (
 		!currentThemeName ||
-		currentThemeName === "prime" ||
+		currentThemeName === "xenon" ||
+		currentThemeName === "xenon" ||
 		currentThemeName === "dark" ||
 		currentThemeName === "light"
 	) {

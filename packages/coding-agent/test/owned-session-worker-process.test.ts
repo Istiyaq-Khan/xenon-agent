@@ -49,9 +49,9 @@ function spawnFrontend(
 		env: {
 			...process.env,
 			...environment,
-			PRIME_AGENT_INTERNAL_LEGACY_OWNED_WORKER_FRONTEND: "1",
-			PRIME_AGENT_TEST_OWNED_PID_PATH: pidPath,
-			...(keepAlive ? { PRIME_AGENT_TEST_KEEP_ALIVE: "1" } : {}),
+			XENON_AGENT_INTERNAL_LEGACY_OWNED_WORKER_FRONTEND: "1",
+			XENON_AGENT_TEST_OWNED_PID_PATH: pidPath,
+			...(keepAlive ? { XENON_AGENT_TEST_KEEP_ALIVE: "1" } : {}),
 			TSX_TSCONFIG_PATH: resolve(__dirname, "../../../tsconfig.json"),
 		},
 		stdio: ["pipe", "pipe", "pipe"],
@@ -129,14 +129,14 @@ describe("owned session worker processes", () => {
 			[["--no-session"], undefined, "interactive-ephemeral", true],
 		];
 		for (const [args, stdin, profile, tty] of cases) {
-			const root = mkdtempSync(join(tmpdir(), "prime-owned-worker-routing-"));
+			const root = mkdtempSync(join(tmpdir(), "xenon-owned-worker-routing-"));
 			tempDirs.push(root);
 			const pidPath = join(root, "worker.pid");
 			const frontend = spawnFrontend(
 				args,
 				pidPath,
 				tty === false,
-				tty === undefined ? {} : { PRIME_AGENT_TEST_STDIN_TTY: tty ? "1" : "0" },
+				tty === undefined ? {} : { XENON_AGENT_TEST_STDIN_TTY: tty ? "1" : "0" },
 			);
 			if (stdin !== undefined) frontend.stdin?.write(stdin);
 			const workerPid = await waitForWorkerPid(pidPath);
@@ -150,7 +150,7 @@ describe("owned session worker processes", () => {
 	});
 
 	it("keeps RPC framing in the frontend and exits its worker on stdin EOF", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-owned-worker-test-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-owned-worker-test-"));
 		tempDirs.push(root);
 		const pidPath = join(root, "worker.pid");
 		const frontend = spawnFrontend(["--mode", "rpc"], pidPath);
@@ -171,11 +171,11 @@ describe("owned session worker processes", () => {
 	});
 
 	it("correlates overlapping anonymous RPC commands without exposing internal ids", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-owned-worker-test-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-owned-worker-test-"));
 		tempDirs.push(root);
 		const pidPath = join(root, "worker.pid");
 		const frontend = spawnFrontend(["--mode", "rpc"], pidPath, false, {
-			PRIME_AGENT_TEST_REVERSE_RPC_RESPONSES: "1",
+			XENON_AGENT_TEST_REVERSE_RPC_RESPONSES: "1",
 		});
 		let stdout = "";
 		frontend.stdout?.on("data", (chunk: Buffer) => {
@@ -196,11 +196,11 @@ describe("owned session worker processes", () => {
 	});
 
 	it("drops malformed worker output instead of corrupting public RPC JSONL", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-owned-worker-test-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-owned-worker-test-"));
 		tempDirs.push(root);
 		const pidPath = join(root, "worker.pid");
 		const frontend = spawnFrontend(["--mode", "rpc"], pidPath, false, {
-			PRIME_AGENT_TEST_INVALID_RPC_OUTPUT: "1",
+			XENON_AGENT_TEST_INVALID_RPC_OUTPUT: "1",
 		});
 		let stdout = "";
 		frontend.stdout?.on("data", (chunk: Buffer) => {
@@ -219,11 +219,11 @@ describe("owned session worker processes", () => {
 	});
 
 	it("does not fabricate a recovery response for response-less acknowledgements", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-owned-worker-test-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-owned-worker-test-"));
 		tempDirs.push(root);
 		const pidPath = join(root, "worker.pid");
 		const frontend = spawnFrontend(["--mode", "rpc"], pidPath, false, {
-			PRIME_AGENT_TEST_CRASH_ON_ACK: "1",
+			XENON_AGENT_TEST_CRASH_ON_ACK: "1",
 		});
 		let stdout = "";
 		frontend.stdout?.on("data", (chunk: Buffer) => {
@@ -245,11 +245,11 @@ describe("owned session worker processes", () => {
 	});
 
 	it("fails pending RPC commands when stdin closes before the worker crashes", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-owned-worker-test-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-owned-worker-test-"));
 		tempDirs.push(root);
 		const pidPath = join(root, "worker.pid");
 		const frontend = spawnFrontend(["--mode", "rpc"], pidPath, false, {
-			PRIME_AGENT_TEST_CRASH_ON_COMMAND: "get_state",
+			XENON_AGENT_TEST_CRASH_ON_COMMAND: "get_state",
 		});
 		let stdout = "";
 		frontend.stdout?.on("data", (chunk: Buffer) => {
@@ -274,11 +274,11 @@ describe("owned session worker processes", () => {
 	});
 
 	it("fails pending RPC commands when the worker exits successfully without responding", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-owned-worker-test-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-owned-worker-test-"));
 		tempDirs.push(root);
 		const pidPath = join(root, "worker.pid");
 		const frontend = spawnFrontend(["--mode", "rpc"], pidPath, false, {
-			PRIME_AGENT_TEST_EXIT_ZERO_ON_COMMAND: "get_state",
+			XENON_AGENT_TEST_EXIT_ZERO_ON_COMMAND: "get_state",
 		});
 		let stdout = "";
 		frontend.stdout?.on("data", (chunk: Buffer) => {
@@ -303,7 +303,7 @@ describe("owned session worker processes", () => {
 	});
 
 	it("terminates the owned worker when its frontend is killed", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-owned-worker-test-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-owned-worker-test-"));
 		tempDirs.push(root);
 		const pidPath = join(root, "worker.pid");
 		const frontend = spawnFrontend(["-p", "hello"], pidPath, true);

@@ -206,6 +206,7 @@ import {
 	normalizeRefinementProposal,
 	planRefinement,
 	REFINE_SKILL_NAME,
+	REFINEMENT_CUSTOM_TYPE,
 	type RefinementPlan,
 	type RefinementResult,
 	reviewAutoRefine,
@@ -1364,18 +1365,18 @@ export class AgentSession {
 			const manager = this._ipythonKernelProvisioner?.manager;
 			if (!manager?.isRunning) return;
 			const code = [
-				"import importlib as _prime_importlib",
-				'_prime_mcp = _prime_importlib.import_module("rlm.mcp")',
-				`_prime_mcp_names = ${JSON.stringify(names)}`,
-				"_prime_mcp_errors = []",
-				"for _prime_mcp_name in _prime_mcp_names:",
+				"import importlib as _xenon_importlib",
+				'_xenon_mcp = _xenon_importlib.import_module("rlm.mcp")',
+				`_xenon_mcp_names = ${JSON.stringify(names)}`,
+				"_xenon_mcp_errors = []",
+				"for _xenon_mcp_name in _xenon_mcp_names:",
 				"    try:",
-				"        await _prime_mcp.reload(_prime_mcp_name)",
-				"    except BaseException as _prime_mcp_error:",
-				"        _prime_mcp_errors.append(_prime_mcp_error)",
-				"if _prime_mcp_errors:",
-				"    raise _prime_mcp_errors[0]",
-				"del _prime_mcp, _prime_importlib, _prime_mcp_names, _prime_mcp_errors, _prime_mcp_name",
+				"        await _xenon_mcp.reload(_xenon_mcp_name)",
+				"    except BaseException as _xenon_mcp_error:",
+				"        _xenon_mcp_errors.append(_xenon_mcp_error)",
+				"if _xenon_mcp_errors:",
+				"    raise _xenon_mcp_errors[0]",
+				"del _xenon_mcp, _xenon_importlib, _xenon_mcp_names, _xenon_mcp_errors, _xenon_mcp_name",
 			].join("\n");
 			const result = await manager.execute(code);
 			if (result.status !== "ok") {
@@ -7069,7 +7070,7 @@ export class AgentSession {
 			throw new Error(`No API key for ${model.provider}/${model.id}`);
 		}
 		if (!(await this._modelRegistry.canUseModel(model))) {
-			throw new Error(`Model "${model.provider}/${model.id}" is not available for the current Prime team.`);
+			throw new Error(`Model "${model.provider}/${model.id}" is not available for the current Xenon team.`);
 		}
 
 		const previousModel = this.model;
@@ -8360,7 +8361,7 @@ export class AgentSession {
 			}
 			let refinementAuditAppendError: { error: unknown } | undefined;
 			try {
-				this.sessionManager.appendCustomEntry("prime-agent.refinement", result);
+				this.sessionManager.appendCustomEntry(REFINEMENT_CUSTOM_TYPE, result);
 			} catch (error) {
 				refinementAuditAppendError = { error };
 			}
@@ -9363,7 +9364,7 @@ export class AgentSession {
 
 	private _addWebsearchKeyEnv(env: Record<string, string>): void {
 		if (this._agentDir) {
-			env.PRIME_AGENT_CODING_AGENT_DIR = this._agentDir;
+			env.XENON_AGENT_CODING_AGENT_DIR = this._agentDir;
 		}
 
 		if (process.env[SERPER_ENV_VAR]?.trim()) {
@@ -9421,7 +9422,7 @@ export class AgentSession {
 	}
 
 	private _createEphemeralRlmSessionDir(): string {
-		this._rlmSessionDir = mkdtempSync(join(tmpdir(), "prime-agent-rlm-"));
+		this._rlmSessionDir = mkdtempSync(join(tmpdir(), "xenon-agent-rlm-"));
 		return this._rlmSessionDir;
 	}
 

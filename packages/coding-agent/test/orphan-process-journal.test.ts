@@ -30,7 +30,7 @@ afterEach(() => {
 
 describe("orphan process journal", () => {
 	it("retains only detached processes still active for the crashed owner", () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-orphan-journal-test-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-orphan-journal-test-"));
 		tempDirs.push(directory);
 		const path = join(directory, "orphans.jsonl");
 		process.env[ORPHAN_PROCESS_JOURNAL_ENV] = path;
@@ -50,7 +50,7 @@ describe("orphan process journal", () => {
 	});
 
 	it("reaps only the given kernel's still-active bash children", async () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-orphan-journal-test-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-orphan-journal-test-"));
 		tempDirs.push(directory);
 		const path = join(directory, "orphans.jsonl");
 		process.env[ORPHAN_PROCESS_JOURNAL_ENV] = path;
@@ -93,7 +93,7 @@ describe("orphan process journal", () => {
 	});
 
 	it("accepts pid-only active records and lets enriched records supersede them", () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-orphan-journal-test-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-orphan-journal-test-"));
 		tempDirs.push(directory);
 		const path = join(directory, "orphans.jsonl");
 		const appendRecord = (record: Record<string, unknown>) => {
@@ -122,7 +122,7 @@ describe("orphan process journal", () => {
 
 	// POSIX behavior: CI runs Ubuntu, so this exercises the real kill path.
 	it("best-effort kills pid-only records in the kernel crash-reap path", async () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-orphan-journal-test-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-orphan-journal-test-"));
 		tempDirs.push(directory);
 		const path = join(directory, "orphans.jsonl");
 		process.env[ORPHAN_PROCESS_JOURNAL_ENV] = path;
@@ -153,7 +153,7 @@ describe("orphan process journal", () => {
 	});
 
 	it("win32 reapers ignore identity-free records", async () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-orphan-journal-test-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-orphan-journal-test-"));
 		tempDirs.push(directory);
 		const path = join(directory, "orphans.jsonl");
 		process.env[ORPHAN_PROCESS_JOURNAL_ENV] = path;

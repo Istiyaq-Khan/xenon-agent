@@ -73,7 +73,7 @@ function createNpmPrefixInstall(template = "pi-prefix-"): { prefix: string; pack
 
 function createHomebrewInstall(): { packageDir: string } {
 	const prefix = mkdtempSync(join(tmpdir(), "pi-homebrew-"));
-	const packageDir = join(prefix, "Cellar", "prime-agent", "0.7.0", "libexec", "lib", "node_modules", "prime-agent");
+	const packageDir = join(prefix, "Cellar", "xenon-agent", "0.7.0", "libexec", "lib", "node_modules", "xenon-agent");
 	mkdirSync(packageDir, { recursive: true });
 	tempDir = prefix;
 	process.env.PI_PACKAGE_DIR = packageDir;
@@ -192,9 +192,9 @@ describe("detectInstallMethod", () => {
 		createHomebrewInstall();
 
 		expect(detectInstallMethod()).toBe("homebrew");
-		expect(getSelfUpdateCommand("prime-agent")).toBeUndefined();
-		expect(getSelfUpdateUnavailableInstruction("prime-agent")).toBe("Update with: brew upgrade prime-agent");
-		expect(getUpdateInstruction("prime-agent")).toBe("Update with: brew upgrade prime-agent");
+		expect(getSelfUpdateCommand("xenon-agent")).toBeUndefined();
+		expect(getSelfUpdateUnavailableInstruction("xenon-agent")).toBe("Update with: brew upgrade xenon-agent");
+		expect(getUpdateInstruction("xenon-agent")).toBe("Update with: brew upgrade xenon-agent");
 	});
 
 	test("self-updates npm installs from custom prefixes", () => {
@@ -236,7 +236,7 @@ describe("detectInstallMethod", () => {
 
 	test("self-updates tarball specs without uninstalling the same logical package first", () => {
 		const { prefix } = createNpmPrefixInstall();
-		const tarballUrl = "https://downloads.example.test/prime-agent/prime-agent-0.73.0.tgz";
+		const tarballUrl = "https://downloads.example.test/xenon-agent/xenon-agent-0.73.0.tgz";
 
 		const command = getSelfUpdateCommand("@earendil-works/pi-coding-agent", undefined, tarballUrl);
 
@@ -249,9 +249,9 @@ describe("detectInstallMethod", () => {
 
 	test("self-updates renamed tarball packages by uninstalling the old package after install", () => {
 		const { prefix } = createNpmPrefixInstall();
-		const tarballUrl = "https://downloads.example.test/prime-agent/prime-agent-0.73.0.tgz";
+		const tarballUrl = "https://downloads.example.test/xenon-agent/xenon-agent-0.73.0.tgz";
 
-		const command = getSelfUpdateCommand("@earendil-works/pi-coding-agent", undefined, tarballUrl, "prime-agent");
+		const command = getSelfUpdateCommand("@earendil-works/pi-coding-agent", undefined, tarballUrl, "xenon-agent");
 
 		expect(command).toEqual({
 			command: "npm",
@@ -272,7 +272,7 @@ describe("detectInstallMethod", () => {
 		});
 	});
 
-	test("self-update respects configured npmCommand", () => {
+	test.skipIf(process.platform === "win32")("self-update respects configured npmCommand", () => {
 		const { prefix } = createNpmPrefixInstall();
 
 		const command = getSelfUpdateCommand("@earendil-works/pi-coding-agent", ["npm", "--prefix", prefix]);
@@ -399,7 +399,7 @@ describe("detectInstallMethod", () => {
 		});
 	});
 
-	test("does not self-update when npm install path is not writable", () => {
+	test.skipIf(process.platform === "win32")("does not self-update when npm install path is not writable", () => {
 		const { packageDir } = createNpmPrefixInstall();
 		chmodSync(packageDir, 0o500);
 
@@ -412,7 +412,7 @@ describe("detectInstallMethod", () => {
 
 describe("session paths", () => {
 	test("uses the short app-prefixed session dir env var", () => {
-		expect(ENV_SESSION_DIR).toBe("PRIME_AGENT_SESSION_DIR");
+		expect(ENV_SESSION_DIR).toBe("XENON_AGENT_SESSION_DIR");
 	});
 
 	test("uses the session root env var when computing sessions dir", () => {
@@ -431,9 +431,9 @@ describe("session paths", () => {
 	});
 
 	test("expands tilde in the session root env var", () => {
-		process.env[ENV_SESSION_DIR] = "~/prime-agent-sessions";
+		process.env[ENV_SESSION_DIR] = "~/xenon-agent-sessions";
 
-		expect(getSessionsDir("/agent")).toBe(join(homedir(), "prime-agent-sessions"));
+		expect(getSessionsDir("/agent")).toBe(join(homedir(), "xenon-agent-sessions"));
 	});
 
 	test("uses the env session root as the default session dir", () => {

@@ -9,22 +9,22 @@ Search the web via the Serper Google Search API.
 
 ## Setup
 
-Get a free API key at https://serper.dev, then run `/login` in Prime Agent,
+Get a free API key at https://serper.dev, then run `/login` in Xenon Agent,
 switch to **MCP Connections**, and choose **Serper (web search)** to paste it.
-The key is stored in Prime Agent and made available to this skill automatically.
+The key is stored in Xenon Agent and made available to this skill automatically.
 
 If web search reports a missing key, walk the user through those two steps;
 don't ask them to set environment variables.
 
 Optional overrides (environment variables):
 
-- `PRIME_AGENT_WEBSEARCH_TIMEOUT` - HTTP timeout in seconds (default 45).
-- `PRIME_AGENT_WEBSEARCH_NUM_RESULTS` - number of organic results to return (default 5).
+- `XENON_AGENT_WEBSEARCH_TIMEOUT` - HTTP timeout in seconds (default 45).
+- `XENON_AGENT_WEBSEARCH_NUM_RESULTS` - number of organic results to return (default 5).
 
 ## Usage
 
 Call the prepared `websearch` import directly in the Python kernel:
 
 ```python
-print(await websearch("latest Prime Agent release"))
+print(await websearch("latest Xenon Agent release"))
 ```

@@ -41,7 +41,7 @@ describe("Daemon-backed serializedRefine propagation", () => {
 	});
 
 	it("serializedRefine=true in defaultSessionConfig arrives at daemon-created session", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-daemon-serialized-refine-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-daemon-serialized-refine-"));
 		tempDirs.push(tempDir);
 		const sessionDir = join(tempDir, "sessions");
 
@@ -87,7 +87,7 @@ describe("Daemon-backed serializedRefine propagation", () => {
 	});
 
 	it("serializedRefine=false in defaultSessionConfig produces _serializedRefine=false session", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-daemon-bg-refine-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-daemon-bg-refine-"));
 		tempDirs.push(tempDir);
 		const sessionDir = join(tempDir, "sessions");
 
@@ -126,7 +126,7 @@ describe("Daemon-backed serializedRefine propagation", () => {
 	});
 
 	it("daemon session with serializedRefine=true crosses threshold and applies refine", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-daemon-threshold-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-daemon-threshold-"));
 		tempDirs.push(tempDir);
 		const sessionDir = join(tempDir, "sessions");
 

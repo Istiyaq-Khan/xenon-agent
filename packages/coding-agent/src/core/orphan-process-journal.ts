@@ -3,7 +3,7 @@ import { closeSync, fsyncSync, openSync, readFileSync, rmSync, writeSync } from 
 import { win32 } from "node:path";
 import { getProcessStartId } from "./session-lease.js";
 
-export const ORPHAN_PROCESS_JOURNAL_ENV = "PRIME_AGENT_INTERNAL_ORPHAN_PROCESS_JOURNAL";
+export const ORPHAN_PROCESS_JOURNAL_ENV = "XENON_AGENT_INTERNAL_ORPHAN_PROCESS_JOURNAL";
 
 interface OrphanProcessRecord {
 	version: 1;
@@ -24,7 +24,7 @@ export interface ActiveOrphanProcess {
 }
 
 export function recordOrphanProcessState(pid: number, active: boolean): void {
-	const path = process.env[ORPHAN_PROCESS_JOURNAL_ENV];
+	const path = process.env[ORPHAN_PROCESS_JOURNAL_ENV] || process.env.XENON_AGENT_INTERNAL_ORPHAN_PROCESS_JOURNAL;
 	if (!path || !Number.isInteger(pid) || pid <= 0) {
 		return;
 	}
@@ -120,7 +120,7 @@ export function clearOrphanProcessJournal(path: string): void {
 
 // Kills still-active bash() children journaled by the given kernel pid; sibling kernels' records are untouched.
 export function reapKernelOrphanProcesses(kernelPid: number): void {
-	const path = process.env[ORPHAN_PROCESS_JOURNAL_ENV];
+	const path = process.env[ORPHAN_PROCESS_JOURNAL_ENV] || process.env.XENON_AGENT_INTERNAL_ORPHAN_PROCESS_JOURNAL;
 	if (!path || !Number.isInteger(kernelPid) || kernelPid <= 0) {
 		return;
 	}

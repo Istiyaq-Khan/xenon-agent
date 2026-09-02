@@ -14,9 +14,9 @@ import {
 	uploadAllAgentTraces,
 } from "../src/core/agent-traces.js";
 import { AuthStorage } from "../src/core/auth-storage.js";
-import { PRIME_AGENT_TRACES_PROVIDER_ID, PRIME_INFERENCE_PROVIDER_ID } from "../src/core/prime-inference-auth.js";
 import { SessionManager } from "../src/core/session-manager.js";
 import { SettingsManager } from "../src/core/settings-manager.js";
+import { XENON_AGENT_TRACES_PROVIDER_ID, XENON_INFERENCE_PROVIDER_ID } from "../src/core/xenon-inference-auth.js";
 
 interface FetchCall {
 	url: string;
@@ -89,23 +89,23 @@ async function advanceTimersUntil(condition: () => boolean): Promise<void> {
 describe("agent trace upload", () => {
 	let tempDir: string;
 	let originalTraceApiKey: string | undefined;
-	let originalPrimeApiKey: string | undefined;
+	let originalXenonApiKey: string | undefined;
 	let originalTraceBaseUrl: string | undefined;
-	let originalPrimeBaseUrl: string | undefined;
+	let originalXenonBaseUrl: string | undefined;
 	let originalAgentDir: string | undefined;
 
 	beforeEach(() => {
 		tempDir = mkdtempSync(join(tmpdir(), "agent-traces-test-"));
 		originalAgentDir = process.env[ENV_AGENT_DIR];
 		process.env[ENV_AGENT_DIR] = tempDir;
-		originalTraceApiKey = process.env.PRIME_AGENT_TRACES_API_KEY;
-		originalPrimeApiKey = process.env.PRIME_API_KEY;
-		originalTraceBaseUrl = process.env.PRIME_AGENT_TRACES_BASE_URL;
-		originalPrimeBaseUrl = process.env.PRIME_API_BASE_URL;
-		delete process.env.PRIME_AGENT_TRACES_API_KEY;
-		delete process.env.PRIME_API_KEY;
-		delete process.env.PRIME_AGENT_TRACES_BASE_URL;
-		delete process.env.PRIME_API_BASE_URL;
+		originalTraceApiKey = process.env.XENON_AGENT_TRACES_API_KEY;
+		originalXenonApiKey = process.env.XENON_API_KEY;
+		originalTraceBaseUrl = process.env.XENON_AGENT_TRACES_BASE_URL;
+		originalXenonBaseUrl = process.env.XENON_API_BASE_URL;
+		delete process.env.XENON_AGENT_TRACES_API_KEY;
+		delete process.env.XENON_API_KEY;
+		delete process.env.XENON_AGENT_TRACES_BASE_URL;
+		delete process.env.XENON_API_BASE_URL;
 	});
 
 	afterEach(() => {
@@ -117,24 +117,24 @@ describe("agent trace upload", () => {
 			process.env[ENV_AGENT_DIR] = originalAgentDir;
 		}
 		if (originalTraceApiKey === undefined) {
-			delete process.env.PRIME_AGENT_TRACES_API_KEY;
+			delete process.env.XENON_AGENT_TRACES_API_KEY;
 		} else {
-			process.env.PRIME_AGENT_TRACES_API_KEY = originalTraceApiKey;
+			process.env.XENON_AGENT_TRACES_API_KEY = originalTraceApiKey;
 		}
-		if (originalPrimeApiKey === undefined) {
-			delete process.env.PRIME_API_KEY;
+		if (originalXenonApiKey === undefined) {
+			delete process.env.XENON_API_KEY;
 		} else {
-			process.env.PRIME_API_KEY = originalPrimeApiKey;
+			process.env.XENON_API_KEY = originalXenonApiKey;
 		}
 		if (originalTraceBaseUrl === undefined) {
-			delete process.env.PRIME_AGENT_TRACES_BASE_URL;
+			delete process.env.XENON_AGENT_TRACES_BASE_URL;
 		} else {
-			process.env.PRIME_AGENT_TRACES_BASE_URL = originalTraceBaseUrl;
+			process.env.XENON_AGENT_TRACES_BASE_URL = originalTraceBaseUrl;
 		}
-		if (originalPrimeBaseUrl === undefined) {
-			delete process.env.PRIME_API_BASE_URL;
+		if (originalXenonBaseUrl === undefined) {
+			delete process.env.XENON_API_BASE_URL;
 		} else {
-			process.env.PRIME_API_BASE_URL = originalPrimeBaseUrl;
+			process.env.XENON_API_BASE_URL = originalXenonBaseUrl;
 		}
 		if (tempDir && existsSync(tempDir)) {
 			rmSync(tempDir, { recursive: true, force: true });
@@ -147,7 +147,7 @@ describe("agent trace upload", () => {
 		const result = await uploadAgentTraceFile({
 			sessionFile: sessionManager.getSessionFile(),
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: false } }),
 			baseUrl: "https://api.example.test",
@@ -165,7 +165,7 @@ describe("agent trace upload", () => {
 		const result = await uploadAgentTraceFile({
 			sessionFile: sessionManager.getSessionFile(),
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: false } }),
 			requireEnabled: false,
@@ -188,7 +188,7 @@ describe("agent trace upload", () => {
 		const result = await uploadAgentTraceFile({
 			sessionFile: sessionManager.getSessionFile(),
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager,
 			baseUrl: "https://api.example.test",
@@ -211,7 +211,7 @@ describe("agent trace upload", () => {
 		const result = await uploadAgentTraceFile({
 			sessionFile: sessionManager.getSessionFile(),
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager,
 			baseUrl: "https://api.example.test",
@@ -237,7 +237,7 @@ describe("agent trace upload", () => {
 		const result = await uploadAgentTraceFile({
 			sessionFile: childSessionFile,
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
 			baseUrl: "https://api.example.test",
@@ -270,15 +270,15 @@ describe("agent trace upload", () => {
 
 	it("uses the production trace API unless a trace-specific base URL is configured", async () => {
 		const sessionManager = writeSession(tempDir, join(tempDir, "sessions"), "prod-session");
-		const configPath = join(tempDir, "prime-config.json");
+		const configPath = join(tempDir, "xenon-config.json");
 		writeFileSync(configPath, JSON.stringify({ base_url: "https://dev-api.example/api/v1" }));
-		process.env.PRIME_API_BASE_URL = "https://wrong-api.example";
+		process.env.XENON_API_BASE_URL = "https://wrong-api.example";
 
 		const calls: FetchCall[] = [];
 		const result = await uploadAgentTraceFile({
 			sessionFile: sessionManager.getSessionFile(),
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
 			configPath,
@@ -288,18 +288,18 @@ describe("agent trace upload", () => {
 
 		expect(result.status).toBe("uploaded");
 		expect(calls).toHaveLength(1);
-		expect(calls[0].url).toBe("https://api.primeintellect.ai/api/v1/agent-traces/sessions/prod-session");
+		expect(calls[0].url).toBe("https://api.xenonintellect.ai/api/v1/agent-traces/sessions/prod-session");
 	});
 
-	it("uses PRIME_AGENT_TRACES_BASE_URL for trace API overrides", async () => {
+	it("uses XENON_AGENT_TRACES_BASE_URL for trace API overrides", async () => {
 		const sessionManager = writeSession(tempDir, join(tempDir, "sessions"), "override-session");
-		process.env.PRIME_AGENT_TRACES_BASE_URL = "https://trace-api.example/api/v1";
+		process.env.XENON_AGENT_TRACES_BASE_URL = "https://trace-api.example/api/v1";
 
 		const calls: FetchCall[] = [];
 		const result = await uploadAgentTraceFile({
 			sessionFile: sessionManager.getSessionFile(),
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
 			fetchFn: createFetchRecorder(calls),
@@ -321,7 +321,7 @@ describe("agent trace upload", () => {
 		const calls: FetchCall[] = [];
 		installAgentTraceUpload(sessionManager, {
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
 			baseUrl: "https://api.example.test",
@@ -366,7 +366,7 @@ describe("agent trace upload", () => {
 
 		installAgentTraceUpload(sessionManager, {
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
 			baseUrl: "https://api.example.test",
@@ -399,7 +399,7 @@ describe("agent trace upload", () => {
 		const calls: FetchCall[] = [];
 		installAgentTraceUpload(sessionManager, {
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
 			baseUrl: "https://api.example.test",
@@ -433,7 +433,7 @@ describe("agent trace upload", () => {
 		const result = await uploadAgentTraceFile({
 			sessionFile,
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
 			baseUrl: "https://api.example.test",
@@ -469,7 +469,7 @@ describe("agent trace upload", () => {
 		const result = await uploadAgentTraceFile({
 			sessionFile: session.getSessionFile(),
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
 			baseUrl: "https://api.example.test",
@@ -497,7 +497,7 @@ describe("agent trace upload", () => {
 		const result = await uploadAgentTraceFile({
 			sessionFile: session.getSessionFile(),
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
 			baseUrl: "https://api.example.test",
@@ -533,7 +533,7 @@ describe("agent trace upload", () => {
 		const upload = uploadAgentTraceFile({
 			sessionFile: session.getSessionFile(),
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
 			baseUrl: "https://api.example.test",
@@ -564,7 +564,7 @@ describe("agent trace upload", () => {
 		const result = await uploadAgentTraceFile({
 			sessionFile: session.getSessionFile(),
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
 			baseUrl: "https://api.example.test",
@@ -597,7 +597,7 @@ describe("agent trace upload", () => {
 		const upload = uploadAgentTraceFile({
 			sessionFile: session.getSessionFile(),
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
 			baseUrl: "https://api.example.test",
@@ -634,7 +634,7 @@ describe("agent trace upload", () => {
 		const upload = uploadAgentTraceFile({
 			sessionFile: session.getSessionFile(),
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
 			baseUrl: "https://api.example.test",
@@ -671,7 +671,7 @@ describe("agent trace upload", () => {
 		const upload = uploadAgentTraceFile({
 			sessionFile: session.getSessionFile(),
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
 			baseUrl: "https://api.example.test",
@@ -704,7 +704,7 @@ describe("agent trace upload", () => {
 		const result = await uploadAgentTraceFile({
 			sessionFile: session.getSessionFile(),
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
 			baseUrl: "https://api.example.test",
@@ -743,7 +743,7 @@ describe("agent trace upload", () => {
 		const upload = uploadAgentTraceFile({
 			sessionFile: session.getSessionFile(),
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
 			baseUrl: "https://api.example.test",
@@ -773,7 +773,7 @@ describe("agent trace upload", () => {
 		const result = await uploadAgentTraceFile({
 			sessionFile: session.getSessionFile(),
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
 			baseUrl: "https://api.example.test",
@@ -802,7 +802,7 @@ describe("agent trace upload", () => {
 		const result = await uploadAgentTraceFile({
 			sessionFile: session.getSessionFile(),
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
 			baseUrl: "https://api.example.test",
@@ -870,7 +870,7 @@ describe("agent trace upload", () => {
 		const upload = uploadAllAgentTraces({
 			sessionDir,
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: false } }),
 			requireEnabled: false,
@@ -928,7 +928,7 @@ describe("agent trace upload", () => {
 		const upload = uploadAllAgentTraces({
 			sessionDir,
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: false } }),
 			requireEnabled: false,
@@ -959,7 +959,7 @@ describe("agent trace upload", () => {
 		const result = await uploadAllAgentTraces({
 			sessionDir,
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: false } }),
 			requireEnabled: false,
@@ -1009,7 +1009,7 @@ describe("agent trace upload", () => {
 		const upload = uploadAllAgentTraces({
 			sessionDir,
 			authStorage: AuthStorage.inMemory({
-				[PRIME_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
+				[XENON_AGENT_TRACES_PROVIDER_ID]: { type: "api_key", key: "trace-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: false } }),
 			requireEnabled: false,
@@ -1028,16 +1028,16 @@ describe("agent trace upload", () => {
 		expect(result.results).toHaveLength(0);
 	});
 
-	it("prefers the prime-inference credential over the prime-cli config key", async () => {
+	it("prefers the xenon-inference credential over the xenon-cli config key", async () => {
 		const session = writeSession(tempDir, join(tempDir, "sessions"), "credential-order-session");
 		const calls: FetchCall[] = [];
-		const configPath = join(tempDir, "prime-config.json");
+		const configPath = join(tempDir, "xenon-config.json");
 		writeFileSync(configPath, JSON.stringify({ api_key: "cli-fallback-key" }));
 
 		const result = await uploadAgentTraceFile({
 			sessionFile: session.getSessionFile(),
 			authStorage: AuthStorage.inMemory({
-				[PRIME_INFERENCE_PROVIDER_ID]: { type: "api_key", key: "inference-key" },
+				[XENON_INFERENCE_PROVIDER_ID]: { type: "api_key", key: "inference-key" },
 			}),
 			settingsManager: SettingsManager.inMemory({ agentTraces: { enabled: true } }),
 			baseUrl: "https://api.example.test",

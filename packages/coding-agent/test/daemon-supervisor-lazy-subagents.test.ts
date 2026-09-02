@@ -94,7 +94,7 @@ function worker(workerId: string, summaries: SessionSummary[] = []): WorkerFixtu
 
 describe("daemon supervisor passive subagent topology", () => {
 	it("finds a child summary by its displayed session ID suffix", () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-supervisor-child-suffix-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-supervisor-child-suffix-"));
 		tempDirs.push(directory);
 		const supervisor = new DaemonSupervisor(join(directory, "daemon.sock"), {
 			defaultSessionConfig: { agentDir: directory, cwd: directory },
@@ -111,7 +111,7 @@ describe("daemon supervisor passive subagent topology", () => {
 	});
 
 	it("rejects an explicit root name that collides with a saved root", async () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-supervisor-root-name-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-supervisor-root-name-"));
 		tempDirs.push(directory);
 		const supervisor = new DaemonSupervisor(join(directory, "daemon.sock"), {
 			defaultSessionConfig: { agentDir: directory, cwd: directory },
@@ -144,7 +144,7 @@ describe("daemon supervisor passive subagent topology", () => {
 	});
 
 	it("rejects a forked root name that collides with another saved root", async () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-supervisor-forked-root-name-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-supervisor-forked-root-name-"));
 		tempDirs.push(directory);
 		const sourceManager = SessionManager.create(directory, join(directory, "sessions"));
 		sourceManager.newSession({ rlmDepth: 0 });
@@ -186,7 +186,7 @@ describe("daemon supervisor passive subagent topology", () => {
 	});
 
 	it("normalizes explicit root names before supervisor validation and launch", async () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-supervisor-normalized-root-name-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-supervisor-normalized-root-name-"));
 		tempDirs.push(directory);
 		const supervisor = new DaemonSupervisor(join(directory, "daemon.sock"), {
 			defaultSessionConfig: { agentDir: directory, cwd: directory },
@@ -222,7 +222,7 @@ describe("daemon supervisor passive subagent topology", () => {
 	});
 
 	it("checks inactive root renames against every saved root", async () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-supervisor-saved-root-rename-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-supervisor-saved-root-rename-"));
 		tempDirs.push(directory);
 		const targetPath = join(directory, "target.jsonl");
 		const duplicatePath = join(directory, "duplicate.jsonl");
@@ -254,7 +254,7 @@ describe("daemon supervisor passive subagent topology", () => {
 	});
 
 	it("retains a legacy child's parent edge when its depth is unknown", () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-supervisor-legacy-family-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-supervisor-legacy-family-"));
 		tempDirs.push(directory);
 		const supervisor = new DaemonSupervisor(join(directory, "daemon.sock"), {
 			defaultSessionConfig: { agentDir: directory, cwd: directory },
@@ -292,7 +292,7 @@ describe("daemon supervisor passive subagent topology", () => {
 	});
 
 	it("compares legacy and modern saved siblings at one neutral depth", () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-supervisor-legacy-sibling-name-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-supervisor-legacy-sibling-name-"));
 		tempDirs.push(directory);
 		const parentSessionPath = join(directory, "parent.jsonl");
 		const base = {
@@ -316,7 +316,7 @@ describe("daemon supervisor passive subagent topology", () => {
 	});
 
 	it("publishes an opening reservation before named create validation awaits", async () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-supervisor-named-create-race-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-supervisor-named-create-race-"));
 		tempDirs.push(directory);
 		const sessionPath = join(directory, "session.jsonl");
 		let releaseSiblings!: () => void;
@@ -353,7 +353,7 @@ describe("daemon supervisor passive subagent topology", () => {
 	});
 
 	it("enforces session ownership when joining an in-flight open", async () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-supervisor-pending-owner-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-supervisor-pending-owner-"));
 		tempDirs.push(directory);
 		const sessionPath = join(directory, "session.jsonl");
 		let releaseLaunch!: () => void;
@@ -387,7 +387,7 @@ describe("daemon supervisor passive subagent topology", () => {
 	});
 
 	it("rejoins an open registered while reclaiming a stale worker registration", async () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-supervisor-reclaim-rejoin-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-supervisor-reclaim-rejoin-"));
 		tempDirs.push(directory);
 		const sessionPath = join(directory, "session.jsonl");
 		let releaseReclaim!: () => void;
@@ -426,7 +426,7 @@ describe("daemon supervisor passive subagent topology", () => {
 	});
 
 	it("propagates an in-flight open failure to joiners", async () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-supervisor-pending-failure-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-supervisor-pending-failure-"));
 		tempDirs.push(directory);
 		const sessionPath = join(directory, "session.jsonl");
 		let releaseLaunch!: () => void;
@@ -464,7 +464,7 @@ describe("daemon supervisor passive subagent topology", () => {
 	});
 
 	it("holds a root rename reservation until the worker commits", async () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-supervisor-root-rename-race-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-supervisor-root-rename-race-"));
 		tempDirs.push(directory);
 		const firstSummary = summary({
 			id: "first-active",
@@ -523,7 +523,7 @@ describe("daemon supervisor passive subagent topology", () => {
 	});
 
 	it("allows only a resident worker token to rename a client-owned session", async () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-supervisor-worker-rename-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-supervisor-worker-rename-"));
 		tempDirs.push(directory);
 		const ownedSummary = summary({
 			id: "owned-active",
@@ -573,7 +573,7 @@ describe("daemon supervisor passive subagent topology", () => {
 	});
 
 	it("serializes active saved-session renames until the worker commits", async () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-supervisor-active-saved-rename-race-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-supervisor-active-saved-rename-race-"));
 		tempDirs.push(directory);
 		const parentSessionPath = join(directory, "parent.jsonl");
 		const firstPath = join(directory, "first.jsonl");
@@ -645,7 +645,7 @@ describe("daemon supervisor passive subagent topology", () => {
 	});
 
 	it("serializes same-scope inactive renames across catalog validation and commit", async () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-supervisor-saved-rename-race-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-supervisor-saved-rename-race-"));
 		tempDirs.push(directory);
 		const firstPath = join(directory, "first.jsonl");
 		const secondPath = join(directory, "second.jsonl");
@@ -698,7 +698,7 @@ describe("daemon supervisor passive subagent topology", () => {
 	});
 
 	it("reserves named child creates by parent scope until worker launch completes", async () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-supervisor-child-create-race-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-supervisor-child-create-race-"));
 		tempDirs.push(directory);
 		const parentSessionPath = join(directory, "parent.jsonl");
 		const child = (id: string) => ({
@@ -754,7 +754,7 @@ describe("daemon supervisor passive subagent topology", () => {
 	});
 
 	it("dispatches authenticated peer queries and excludes disconnected workers", async () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-supervisor-passive-peers-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-supervisor-passive-peers-"));
 		tempDirs.push(directory);
 		const socketPath = join(directory, "daemon.sock");
 		const supervisor = new DaemonSupervisor(socketPath, {

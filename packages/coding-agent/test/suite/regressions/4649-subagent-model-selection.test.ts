@@ -110,7 +110,7 @@ describe("ENG-4649 subagent model selection", () => {
 		}
 	});
 
-	it("includes private Prime models authorized for the selected team", async () => {
+	it("includes private Xenon models authorized for the selected team", async () => {
 		const harness = await createHarness({ provider, models: [{ id: "parent-model" }] });
 		const fetchModels = vi.fn(
 			async () =>
@@ -121,14 +121,14 @@ describe("ENG-4649 subagent model selection", () => {
 		);
 		vi.stubGlobal("fetch", fetchModels);
 		try {
-			harness.authStorage.set("prime-inference", {
+			harness.authStorage.set("xenon-inference", {
 				type: "api_key",
-				key: "prime-key",
-				primeTeam: { teamId: "engineering-team", name: "Prime Engineering" },
+				key: "xenon-key",
+				xenonTeam: { teamId: "engineering-team", name: "Xenon Engineering" },
 			});
 
 			const discovered = await harness.session.findRlmModels("glm 5.2", 8);
-			expect(discovered.models.map((model) => model.selector)).toContain("prime-inference/internal/glm-5.2-fast");
+			expect(discovered.models.map((model) => model.selector)).toContain("xenon-inference/internal/glm-5.2-fast");
 			expect(fetchModels).toHaveBeenCalledOnce();
 		} finally {
 			vi.unstubAllGlobals();

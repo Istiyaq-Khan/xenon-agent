@@ -216,7 +216,7 @@ describe("ConfigurationMenuComponent", () => {
 	it("keeps the active marker visible across supported themes", async () => {
 		const menu = await createMenu();
 
-		for (const themeName of ["dark", "light", "prime"] as const) {
+		for (const themeName of ["dark", "light", "xenon"] as const) {
 			initTheme(themeName);
 			const rendered = menu.render(120).join("\n");
 			expect(stripAnsi(rendered)).toContain("[▶ Providers]");

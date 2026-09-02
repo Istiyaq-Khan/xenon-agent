@@ -19,7 +19,7 @@ import type {
 import { latestAutonomousGateAttempt } from "../headless-completion.js";
 import { type AcpEventMappingState, acpUpdatesForSessionEvent } from "./acp-events.js";
 import { resolveAcpMcpServers } from "./acp-mcp.js";
-import { PRIME_AGENT_META_NAMESPACE, type PrimeAgentAutonomousMeta, primeAgentMeta } from "./acp-meta.js";
+import { XENON_AGENT_META_NAMESPACE, type XenonAgentAutonomousMeta, xenonAgentMeta } from "./acp-meta.js";
 import { type AcpStopReason, acpStopReason } from "./acp-stop-reason.js";
 
 /**
@@ -266,16 +266,19 @@ class AcpUpdateProducer {
 			string,
 			unknown
 		>;
-		const priorPrimeMeta =
-			priorMeta[PRIME_AGENT_META_NAMESPACE] && typeof priorMeta[PRIME_AGENT_META_NAMESPACE] === "object"
-				? (priorMeta[PRIME_AGENT_META_NAMESPACE] as Record<string, unknown>)
-				: {};
+		const priorXenonMeta =
+			(priorMeta[XENON_AGENT_META_NAMESPACE] && typeof priorMeta[XENON_AGENT_META_NAMESPACE] === "object"
+				? (priorMeta[XENON_AGENT_META_NAMESPACE] as Record<string, unknown>)
+				: undefined) ??
+			(priorMeta[XENON_AGENT_META_NAMESPACE] && typeof priorMeta[XENON_AGENT_META_NAMESPACE] === "object"
+				? (priorMeta[XENON_AGENT_META_NAMESPACE] as Record<string, unknown>)
+				: {});
 		const correlatedUpdate = {
 			...update,
 			_meta: {
 				...priorMeta,
-				[PRIME_AGENT_META_NAMESPACE]: {
-					...priorPrimeMeta,
+				[XENON_AGENT_META_NAMESPACE]: {
+					...priorXenonMeta,
 					promptTurnId: turnId,
 					eventSequence,
 					phase,
@@ -316,7 +319,7 @@ class AcpUpdateProducer {
 }
 
 /**
- * Split ACP prompt blocks into the text and images prime-agent accepts.
+ * Split ACP prompt blocks into the text and images xenon-agent accepts.
  *
  * Image and embedded-resource blocks are advertised in `initialize`, so they must
  * actually reach the model: dropping them silently would let a client believe a
@@ -350,7 +353,7 @@ function promptContent(blocks: readonly unknown[]): { text: string; images: Imag
 	return { text: texts.join("\n"), images };
 }
 
-function autonomousMeta(status: AgentAutonomousStatus | undefined): PrimeAgentAutonomousMeta | undefined {
+function autonomousMeta(status: AgentAutonomousStatus | undefined): XenonAgentAutonomousMeta | undefined {
 	if (!status?.enabled) return undefined;
 	return {
 		enabled: status.enabled,
@@ -651,7 +654,7 @@ export async function runAcpModeWithConnection(
 				const publication = entry.producer.publish(
 					{
 						sessionUpdate: "session_info_update",
-						_meta: primeAgentMeta({ ...(autonomous ? { autonomous } : {}), quiescence: terminalQuiescence }),
+						_meta: xenonAgentMeta({ ...(autonomous ? { autonomous } : {}), quiescence: terminalQuiescence }),
 					},
 					pending.promptTurnId,
 					"terminalQuiescence",
@@ -677,7 +680,7 @@ export async function runAcpModeWithConnection(
 	};
 
 	const handle = acp
-		.agent({ name: "prime-agent" })
+		.agent({ name: "xenon-agent" })
 		.onRequest("initialize", async () => ({
 			protocolVersion: acp.PROTOCOL_VERSION,
 			agentCapabilities: {
@@ -688,10 +691,10 @@ export async function runAcpModeWithConnection(
 				// the single-session slot) instead of dropping the connection.
 				sessionCapabilities: { close: {} },
 			},
-			agentInfo: { name: "prime-agent", title: "Prime Agent", version: VERSION },
-			// Advertise prime-agent extras under a namespaced key: ACP reserves
+			agentInfo: { name: "xenon-agent", title: "Xenon Agent", version: VERSION },
+			// Advertise xenon-agent extras under a namespaced key: ACP reserves
 			// every object root for future protocol fields.
-			_meta: primeAgentMeta({}),
+			_meta: xenonAgentMeta({}),
 		}))
 		.onRequest("session/new", async (ctx: any) => {
 			// Reserve the single-session slot before the first await. Otherwise two
@@ -699,8 +702,8 @@ export async function runAcpModeWithConnection(
 			// snapshot reads are in flight, then overwrite each other's session.
 			if (session || sessionNewInFlight || sessionCloseInFlight) {
 				throw new Error(
-					"prime-agent ACP mode hosts one session per connection; " +
-						"start another prime-agent process for a second session",
+					"xenon-agent ACP mode hosts one session per connection; " +
+						"start another xenon-agent process for a second session",
 				);
 			}
 			sessionNewInFlight = true;
@@ -716,7 +719,7 @@ export async function runAcpModeWithConnection(
 					await options.bindHeadlessExtensions?.();
 					bound = true;
 				}
-				// prime-agent's cwd is fixed at startup by the session it was launched
+				// xenon-agent's cwd is fixed at startup by the session it was launched
 				// with, so a client-supplied cwd cannot be adopted after the fact.
 				// Report the real cwd back in `_meta` rather than failing the request or
 				// letting the client assume a directory the agent is not using.
@@ -769,7 +772,7 @@ export async function runAcpModeWithConnection(
 					unsubscribe: undefined,
 					producer,
 				};
-				// Subscribe for the session lifetime, not per prompt turn: prime-agent
+				// Subscribe for the session lifetime, not per prompt turn: xenon-agent
 				// subagents are fire-and-forget and keep reporting after the spawning turn
 				// ends, so a turn-scoped subscription would drop their updates. One
 				// mapping state per session keeps streaming bash output correlated with
@@ -781,7 +784,7 @@ export async function runAcpModeWithConnection(
 					// They therefore intentionally use origin turn 0.
 					if (event.type === "heartbeats_changed") {
 						void producer.publish(
-							{ sessionUpdate: "session_info_update", _meta: primeAgentMeta({ heartbeatsChanged: true }) },
+							{ sessionUpdate: "session_info_update", _meta: xenonAgentMeta({ heartbeatsChanged: true }) },
 							0,
 							"event",
 						);
@@ -821,7 +824,7 @@ export async function runAcpModeWithConnection(
 				session = entry;
 				const response = {
 					sessionId,
-					...(cwdMismatch ? { _meta: primeAgentMeta({ cwd: cwdMismatch }) } : {}),
+					...(cwdMismatch ? { _meta: xenonAgentMeta({ cwd: cwdMismatch }) } : {}),
 				};
 				// The stream wrapper commits this gate after this exact response has
 				// written. Buffered subscription updates retain producer order.
@@ -918,7 +921,7 @@ export async function runAcpModeWithConnection(
 				responseBoundaryEmitted = await entry.producer.publish(
 					{
 						sessionUpdate: "session_info_update",
-						_meta: primeAgentMeta({ terminalQuiescenceExpected: true }),
+						_meta: xenonAgentMeta({ terminalQuiescenceExpected: true }),
 					},
 					promptTurnId,
 					"responseBoundary",
@@ -928,7 +931,7 @@ export async function runAcpModeWithConnection(
 				const completionUpdateEmitted = await entry.producer.publish(
 					{
 						sessionUpdate: "session_info_update",
-						_meta: primeAgentMeta({ ...(autonomous ? { autonomous } : {}), quiescence: observedQuiescence }),
+						_meta: xenonAgentMeta({ ...(autonomous ? { autonomous } : {}), quiescence: observedQuiescence }),
 					},
 					promptTurnId,
 					"event",
@@ -946,11 +949,11 @@ export async function runAcpModeWithConnection(
 						throw new Error(`ACP lifecycle reconciliation failed: ${pending.failure}`);
 					}
 					if (pending.turnFailure) {
-						throw new Error(`prime-agent turn failed: ${pending.turnFailure}`);
+						throw new Error(`xenon-agent turn failed: ${pending.turnFailure}`);
 					}
 					terminalStatus = pending.status ?? status;
 				}
-				if (failure) throw new Error(`prime-agent turn failed: ${failure}`);
+				if (failure) throw new Error(`xenon-agent turn failed: ${failure}`);
 				return {
 					stopReason: acpStopReason({
 						cancelled: terminalSettlementCancelled,
@@ -968,7 +971,7 @@ export async function runAcpModeWithConnection(
 					await entry.producer.publish(
 						{
 							sessionUpdate: "session_info_update",
-							_meta: primeAgentMeta({ terminalQuiescenceExpected: false }),
+							_meta: xenonAgentMeta({ terminalQuiescenceExpected: false }),
 						},
 						promptTurnId,
 						"responseBoundary",

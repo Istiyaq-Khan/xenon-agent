@@ -3,8 +3,8 @@ import stripAnsi from "strip-ansi";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { type AuthStatus, AuthStorage } from "../src/core/auth-storage.js";
 import { KeybindingsManager } from "../src/core/keybindings.js";
-import { PRIME_INFERENCE_PROVIDER_ID } from "../src/core/prime-inference-auth.js";
 import { BUILT_IN_PROVIDER_DISPLAY_NAMES } from "../src/core/provider-display-names.js";
+import { XENON_INFERENCE_PROVIDER_ID } from "../src/core/xenon-inference-auth.js";
 import { isApiKeyLoginProvider } from "../src/modes/interactive/auth-flows.js";
 import {
 	compareAuthSelectorProviders,
@@ -60,7 +60,7 @@ describe("OAuthSelectorComponent", () => {
 		]);
 	});
 
-	it("sorts Prime Inference first within every login auth-state group", () => {
+	it("sorts Xenon Inference first within every login auth-state group", () => {
 		const cases: Array<{ status: AuthStatus; configuredProviderLeads: boolean }> = [
 			{ status: { configured: true, source: "environment" }, configuredProviderLeads: false },
 			{ status: { configured: false, source: "stale", label: "expired" }, configuredProviderLeads: true },
@@ -73,7 +73,7 @@ describe("OAuthSelectorComponent", () => {
 				AuthStorage.inMemory(),
 				[
 					{ id: "anthropic", name: "Anthropic", authType: "api_key" },
-					{ id: PRIME_INFERENCE_PROVIDER_ID, name: "Prime Inference", authType: "api_key" },
+					{ id: XENON_INFERENCE_PROVIDER_ID, name: "Xenon Inference", authType: "api_key" },
 					{ id: "openai", name: "OpenAI", authType: "api_key" },
 				],
 				() => {},
@@ -83,15 +83,15 @@ describe("OAuthSelectorComponent", () => {
 			);
 
 			const output = stripAnsi(selector.render(120).join("\n"));
-			const primeIndex = output.indexOf("Prime Inference");
+			const xenonIndex = output.indexOf("Xenon Inference");
 			const anthropicIndex = output.indexOf("Anthropic");
 			const openAiIndex = output.indexOf("OpenAI");
 
-			expect(primeIndex).toBeLessThan(anthropicIndex);
+			expect(xenonIndex).toBeLessThan(anthropicIndex);
 			if (configuredProviderLeads) {
-				expect(openAiIndex).toBeLessThan(primeIndex);
+				expect(openAiIndex).toBeLessThan(xenonIndex);
 			} else {
-				expect(primeIndex).toBeLessThan(openAiIndex);
+				expect(xenonIndex).toBeLessThan(openAiIndex);
 			}
 		}
 	});
@@ -236,19 +236,19 @@ describe("OAuthSelectorComponent", () => {
 	it("sorts stale auth ahead of unconfigured providers", () => {
 		process.env.OPENAI_API_KEY = "test-openai-key";
 		const authStorage = AuthStorage.inMemory({
-			"prime-inference": {
+			"xenon-inference": {
 				type: "api_key",
-				key: "stale-prime-key",
+				key: "stale-xenon-key",
 			},
 		});
-		authStorage.markAuthStale("prime-inference");
+		authStorage.markAuthStale("xenon-inference");
 		const selector = new OAuthSelectorComponent(
 			"login",
 			authStorage,
 			[
 				{ id: "github-copilot", name: "GitHub Copilot", authType: "oauth" },
 				{ id: "amazon-bedrock", name: "Amazon Bedrock", authType: "api_key" },
-				{ id: "prime-inference", name: "Prime Inference", authType: "api_key" },
+				{ id: "xenon-inference", name: "Xenon Inference", authType: "api_key" },
 				{ id: "openai", name: "OpenAI", authType: "api_key" },
 			],
 			() => {},
@@ -257,9 +257,9 @@ describe("OAuthSelectorComponent", () => {
 
 		const output = stripAnsi(selector.render(120).join("\n"));
 
-		expect(output.indexOf("OpenAI")).toBeLessThan(output.indexOf("Prime Inference"));
-		expect(output.indexOf("Prime Inference")).toBeLessThan(output.indexOf("GitHub Copilot"));
-		expect(output.indexOf("Prime Inference")).toBeLessThan(output.indexOf("Amazon Bedrock"));
+		expect(output.indexOf("OpenAI")).toBeLessThan(output.indexOf("Xenon Inference"));
+		expect(output.indexOf("Xenon Inference")).toBeLessThan(output.indexOf("GitHub Copilot"));
+		expect(output.indexOf("Xenon Inference")).toBeLessThan(output.indexOf("Amazon Bedrock"));
 		expect(output).toContain("expired");
 	});
 

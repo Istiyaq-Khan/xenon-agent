@@ -1,5 +1,5 @@
 {
-	"name": "prime-agent",
+	"name": "xenon-agent",
 	"private": true,
 	"type": "module",
 	"workspaces": [
@@ -11,7 +11,7 @@
 	],
 	"scripts": {
 		"clean": "npm run clean --workspaces",
-		"build": "cd packages/tui && npm run build && cd ../ai && npm run build && cd ../agent && npm run build && cd ../coding-agent && npm run build",
+		"build": "cd packages/tui && npm run build && cd ../ai && npm run build && cd ../agent && npm run build && cd ../coding-agent && npm run build && cd ../.. && node scripts/create-root-cli.mjs",
 		"dev": "concurrently --names \"ai,agent,coding-agent,tui\" --prefix-colors \"cyan,yellow,red,magenta\" \"cd packages/ai && npm run dev\" \"cd packages/agent && npm run dev\" \"cd packages/coding-agent && npm run dev\" \"cd packages/tui && npm run dev\"",
 		"dev:tsc": "cd packages/ai && npm run dev:tsc",
 		"check": "biome check --write --error-on-warnings . && tsgo --noEmit && npm run check:installer && npm run check:browser-smoke",
@@ -27,7 +27,7 @@
 		"prepublishOnly": "npm run clean && npm run build && npm run check",
 		"publish": "npm run prepublishOnly && npm publish -ws --access public",
 		"publish:dry": "npm run prepublishOnly && npm publish -ws --access public --dry-run",
-		"release:pack": "node scripts/pack-prime-agent-release.mjs",
+		"release:pack": "node scripts/pack-xenon-agent-release.mjs",
 		"release:patch": "node scripts/release.mjs patch",
 		"release:minor": "node scripts/release.mjs minor",
 		"release:major": "node scripts/release.mjs major",
@@ -49,6 +49,19 @@
 		"node": ">=22.8.0"
 	},
 	"version": "0.8.1",
+	"author": "Istiyaq Khan Razin <https://github.com/Istiyaq-Khan>",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Istiyaq-Khan/xenon-agent.git"
+	},
+	"homepage": "https://github.com/Istiyaq-Khan/xenon-agent#readme",
+	"bugs": {
+		"url": "https://github.com/Istiyaq-Khan/xenon-agent/issues"
+	},
+	"bin": {
+		"xenon": "./dist/cli.js",
+		"xenon-agent": "./dist/cli.js"
+	},
 	"dependencies": {
 		"@earendil-works/pi-coding-agent": "^0.8.1",
 		"get-east-asian-width": "^1.6.0"

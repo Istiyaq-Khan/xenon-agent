@@ -20,7 +20,7 @@ body:
       label: Steps to reproduce
       description: Steps to reliably reproduce the issue.
       placeholder: |
-        1. Run `prime-agent ...`
+        1. Run `xenon-agent ...`
         2. ...
         3. See error
     validations:
@@ -42,8 +42,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: Prime Agent version
-      description: Output of `prime-agent --version`.
+      label: Xenon Agent version
+      description: Output of `xenon-agent --version`.
       placeholder: "e.g. 0.1.0"
     validations:
       required: true

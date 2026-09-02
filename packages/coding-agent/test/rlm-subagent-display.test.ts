@@ -30,7 +30,7 @@ function makeEntry(sessionDir: string, overrides: Partial<RlmSubagentDisplayEntr
 
 describe("rlm subagent display files", () => {
 	it("round-trips an entry and replaces it atomically without temp-file residue", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-rlm-display-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-rlm-display-"));
 		try {
 			const sessionDir = join(tempDir, "sub-1234abcd");
 			const entry = makeEntry(sessionDir);
@@ -47,7 +47,7 @@ describe("rlm subagent display files", () => {
 	});
 
 	it("reads tolerantly: missing, malformed, and invalid files are undefined", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-rlm-display-tolerant-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-rlm-display-tolerant-"));
 		try {
 			const sessionDir = join(tempDir, "sub-1234abcd");
 			await expect(readRlmSubagentDisplayEntry(sessionDir)).resolves.toBeUndefined();
@@ -70,7 +70,7 @@ describe("rlm subagent display files", () => {
 	});
 
 	it("accepts unknown extra fields from newer writers", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-rlm-display-forward-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-rlm-display-forward-"));
 		try {
 			const sessionDir = join(tempDir, "sub-1234abcd");
 			const entry = makeEntry(sessionDir);

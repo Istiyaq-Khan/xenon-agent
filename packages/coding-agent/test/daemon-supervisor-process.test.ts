@@ -26,7 +26,7 @@ const children = new Set<ChildProcess>();
 const workerPids = new Set<number>();
 const daemonSockets = new Set<string>();
 const childDiagnostics = new WeakMap<ChildProcess, { stdout: string; stderr: string }>();
-const PROCESS_STRESS_WORKERS = Number.parseInt(process.env.PRIME_AGENT_STRESS_WORKERS ?? "10", 10);
+const PROCESS_STRESS_WORKERS = Number.parseInt(process.env.XENON_AGENT_STRESS_WORKERS ?? "10", 10);
 
 afterEach(async () => {
 	for (const socketPath of daemonSockets) {
@@ -70,7 +70,7 @@ afterEach(async () => {
 });
 
 function tempDir(): string {
-	const directory = mkdtempSync(join(tmpdir(), "prime-daemon-supervisor-test-"));
+	const directory = mkdtempSync(join(tmpdir(), "xenon-daemon-supervisor-test-"));
 	tempDirs.push(directory);
 	return directory;
 }
@@ -312,7 +312,7 @@ describe("daemon supervisor resident workers", () => {
 		const agentDir = join(root, "agent");
 		const projectDir = join(root, "project");
 		const sessionDir = join(agentDir, "sessions");
-		const socketPath = join(tmpdir(), `prime-supervisor-depth-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
+		const socketPath = join(tmpdir(), `xenon-supervisor-depth-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
 		mkdirSync(projectDir, { recursive: true });
 
 		const supervisor = spawnSupervisor(agentDir, socketPath, projectDir, [], { RLM_DEPTH: "1" });
@@ -341,7 +341,7 @@ describe("daemon supervisor resident workers", () => {
 		const agentDir = join(root, "agent");
 		const projectDir = join(root, "project");
 		const sessionDir = join(agentDir, "sessions");
-		const socketPath = join(tmpdir(), `prime-supervisor-passive-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
+		const socketPath = join(tmpdir(), `xenon-supervisor-passive-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
 		mkdirSync(projectDir, { recursive: true });
 
 		const parentManager = SessionManager.create(projectDir, sessionDir);
@@ -454,7 +454,7 @@ describe("daemon supervisor resident workers", () => {
 		const agentDir = join(root, "agent");
 		const projectDir = join(root, "project");
 		const sessionDir = join(agentDir, "sessions");
-		const socketPath = join(tmpdir(), `prime-supervisor-owned-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
+		const socketPath = join(tmpdir(), `xenon-supervisor-owned-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
 		mkdirSync(projectDir, { recursive: true });
 		const sessionManager = SessionManager.create(projectDir, sessionDir);
 		sessionManager.appendMessage({ role: "user", content: "owned worker fixture", timestamp: 1 });
@@ -470,7 +470,7 @@ describe("daemon supervisor resident workers", () => {
 			type: "create",
 			sessionPath: sessionFile,
 			lifecycle: "client_owned",
-			launchEnv: { PRIME_AGENT_OWNED_TEST: launchEnvSentinel },
+			launchEnv: { XENON_AGENT_OWNED_TEST: launchEnvSentinel },
 			config: { cwd: projectDir, agentDir, sessionDir, noTools: true, noExtensions: true },
 		});
 		expect(created.success).toBe(true);
@@ -552,7 +552,7 @@ describe("daemon supervisor resident workers", () => {
 		const root = tempDir();
 		const agentDir = join(root, "agent");
 		const projectDir = join(root, "project");
-		const socketPath = join(tmpdir(), `prime-supervisor-owned-adopt-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
+		const socketPath = join(tmpdir(), `xenon-supervisor-owned-adopt-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
 		mkdirSync(projectDir, { recursive: true });
 
 		const supervisor = spawnSupervisor(agentDir, socketPath, projectDir);
@@ -603,7 +603,7 @@ describe("daemon supervisor resident workers", () => {
 		const sessionDir = join(agentDir, "sessions");
 		const socketPath = join(
 			tmpdir(),
-			`prime-supervisor-root-message-${process.pid}-${randomUUID().slice(0, 8)}.sock`,
+			`xenon-supervisor-root-message-${process.pid}-${randomUUID().slice(0, 8)}.sock`,
 		);
 		mkdirSync(projectDir, { recursive: true });
 
@@ -653,7 +653,7 @@ describe("daemon supervisor resident workers", () => {
 		const sessionDir = join(agentDir, "sessions");
 		const socketPath = join(
 			tmpdir(),
-			`prime-supervisor-archived-cron-${process.pid}-${randomUUID().slice(0, 8)}.sock`,
+			`xenon-supervisor-archived-cron-${process.pid}-${randomUUID().slice(0, 8)}.sock`,
 		);
 		mkdirSync(projectDir, { recursive: true });
 		const sessionManager = SessionManager.create(projectDir, sessionDir);
@@ -706,7 +706,7 @@ describe("daemon supervisor resident workers", () => {
 		const agentDir = join(root, "agent");
 		const projectDir = join(root, "project");
 		const sessionDir = join(agentDir, "sessions");
-		const socketPath = join(tmpdir(), `prime-supervisor-orphan-cron-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
+		const socketPath = join(tmpdir(), `xenon-supervisor-orphan-cron-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
 		mkdirSync(projectDir, { recursive: true });
 		const sessionManager = SessionManager.create(projectDir, sessionDir);
 		sessionManager.appendMessage({ role: "user", content: "old scheduled work", timestamp: 1 });
@@ -754,7 +754,7 @@ describe("daemon supervisor resident workers", () => {
 		const agentDir = join(root, "agent");
 		const projectDir = join(root, "project");
 		const sessionDir = join(root, "custom-sessions");
-		const socketPath = join(tmpdir(), `prime-supervisor-restart-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
+		const socketPath = join(tmpdir(), `xenon-supervisor-restart-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
 		mkdirSync(projectDir, { recursive: true });
 
 		const supervisor = spawnSupervisor(agentDir, socketPath, projectDir, ["--session-dir", sessionDir, "--no-tools"]);
@@ -781,7 +781,7 @@ describe("daemon supervisor resident workers", () => {
 		const agentDir = join(root, "agent");
 		const projectDir = join(root, "project");
 		const missingCwd = join(root, "missing-project");
-		const socketPath = join(tmpdir(), `prime-supervisor-spawn-error-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
+		const socketPath = join(tmpdir(), `xenon-supervisor-spawn-error-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
 		mkdirSync(projectDir, { recursive: true });
 
 		const supervisor = spawnSupervisor(agentDir, socketPath, projectDir);
@@ -807,7 +807,7 @@ describe("daemon supervisor resident workers", () => {
 		const agentDir = join(root, "agent");
 		const projectDir = join(root, "project");
 		const sessionDir = join(agentDir, "sessions");
-		const socketPath = join(tmpdir(), `prime-supervisor-shutdown-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
+		const socketPath = join(tmpdir(), `xenon-supervisor-shutdown-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
 		mkdirSync(projectDir, { recursive: true });
 		const sessionManager = SessionManager.create(projectDir, sessionDir);
 		sessionManager.appendMessage({ role: "user", content: "stop with daemon", timestamp: 1 });
@@ -882,7 +882,7 @@ describe("daemon supervisor resident workers", () => {
 		const sessionDir = join(agentDir, "sessions");
 		const socketPath = join(
 			tmpdir(),
-			`prime-supervisor-stop-finalize-${process.pid}-${randomUUID().slice(0, 8)}.sock`,
+			`xenon-supervisor-stop-finalize-${process.pid}-${randomUUID().slice(0, 8)}.sock`,
 		);
 		mkdirSync(projectDir, { recursive: true });
 		const sessionManager = SessionManager.create(projectDir, sessionDir);
@@ -944,7 +944,7 @@ describe("daemon supervisor resident workers", () => {
 		const agentDir = join(root, "agent");
 		const projectDir = join(root, "project");
 		const sessionDir = join(agentDir, "sessions");
-		const socketPath = join(tmpdir(), `prime-supervisor-resume-heal-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
+		const socketPath = join(tmpdir(), `xenon-supervisor-resume-heal-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
 		mkdirSync(projectDir, { recursive: true });
 		const sessionManager = SessionManager.create(projectDir, sessionDir);
 		sessionManager.appendMessage({ role: "user", content: "resume me", timestamp: 1 });
@@ -1025,7 +1025,7 @@ describe("daemon supervisor resident workers", () => {
 		const agentDir = join(root, "agent");
 		const projectDir = join(root, "project");
 		const sessionDir = join(agentDir, "sessions");
-		const socketPath = join(tmpdir(), `prime-supervisor-stop-race-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
+		const socketPath = join(tmpdir(), `xenon-supervisor-stop-race-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
 		mkdirSync(projectDir, { recursive: true });
 		const sessionManager = SessionManager.create(projectDir, sessionDir);
 		sessionManager.appendMessage({ role: "user", content: "stop me", timestamp: 1 });
@@ -1105,7 +1105,7 @@ describe("daemon supervisor resident workers", () => {
 		const agentDir = join(root, "agent");
 		const projectDir = join(root, "project");
 		const sessionDir = join(agentDir, "sessions");
-		const socketPath = join(tmpdir(), `prime-supervisor-smoke-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
+		const socketPath = join(tmpdir(), `xenon-supervisor-smoke-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
 		mkdirSync(projectDir, { recursive: true });
 		const sessionFiles = Array.from({ length: 2 }, (_, index) => {
 			const manager = SessionManager.create(projectDir, sessionDir);
@@ -1179,7 +1179,7 @@ describe("daemon supervisor resident workers", () => {
 		const agentDir = join(root, "agent");
 		const projectDir = join(root, "project");
 		const sessionDir = join(agentDir, "sessions");
-		const socketPath = join(tmpdir(), `prime-supervisor-many-roots-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
+		const socketPath = join(tmpdir(), `xenon-supervisor-many-roots-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
 		mkdirSync(projectDir, { recursive: true });
 		const sessionFiles = Array.from({ length: PROCESS_STRESS_WORKERS }, (_, index) => {
 			const manager = SessionManager.create(projectDir, sessionDir);
@@ -1313,7 +1313,7 @@ describe("daemon supervisor resident workers", () => {
 		const agentDir = join(root, "agent");
 		const projectDir = join(root, "project");
 		const sessionDir = join(agentDir, "sessions");
-		const socketPath = join(tmpdir(), `prime-supervisor-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
+		const socketPath = join(tmpdir(), `xenon-supervisor-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
 		mkdirSync(projectDir, { recursive: true });
 		const sessionManager = SessionManager.create(projectDir, sessionDir);
 		const largePrompt = `large:${"x".repeat(600 * 1024)}`;
@@ -1478,7 +1478,7 @@ describe("daemon supervisor resident workers", () => {
 			sessionPath: sessionFile,
 			continueRecent: false,
 			config: { cwd: projectDir, agentDir, sessionDir, noTools: true, noExtensions: true },
-			launchEnv: { PRIME_AGENT_TEST_FRESH_CONTEXT: "1" },
+			launchEnv: { XENON_AGENT_TEST_FRESH_CONTEXT: "1" },
 		});
 		if (!reopened.success) throw new Error(reopened.error);
 		const recovered = requireSummary(reopened.data);
@@ -1514,7 +1514,7 @@ describe("daemon supervisor resident workers", () => {
 		const agentDir = join(root, "agent");
 		const projectDir = join(root, "project");
 		const sessionDir = join(agentDir, "sessions");
-		const socketPath = join(tmpdir(), `prime-worker-cron-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
+		const socketPath = join(tmpdir(), `xenon-worker-cron-${process.pid}-${randomUUID().slice(0, 8)}.sock`);
 		mkdirSync(projectDir, { recursive: true });
 		const sessionManager = SessionManager.create(projectDir, sessionDir);
 		sessionManager.appendMessage({ role: "user", content: "scheduled work", timestamp: 1 });

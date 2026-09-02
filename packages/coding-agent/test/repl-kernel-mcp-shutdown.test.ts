@@ -5,11 +5,20 @@ import { join, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ReplKernelManager } from "../src/core/kernel/index.js";
 
-const runtimePython = resolve("../../prime-agent-runtime/.venv/bin/python");
-const fallbackPython = join(homedir(), ".prime", "agent", "kernel-venv", "bin", "python");
+const runtimePython = resolve("../../xenon-agent-runtime/.venv/bin/python");
+const legacyRuntimePython = resolve("../../xenon-agent-runtime/.venv/bin/python");
+const fallbackPython = join(homedir(), ".xenon-agent", "kernel-venv", "bin", "python");
+const legacyFallbackPython = join(homedir(), ".xenon", "agent", "kernel-venv", "bin", "python");
 
 function resolveKernelPython(): string | null {
-	for (const python of [process.env.PRIME_AGENT_KERNEL_PYTHON, runtimePython, fallbackPython]) {
+	for (const python of [
+		process.env.XENON_AGENT_KERNEL_PYTHON,
+		process.env.XENON_AGENT_KERNEL_PYTHON,
+		runtimePython,
+		legacyRuntimePython,
+		fallbackPython,
+		legacyFallbackPython,
+	]) {
 		if (!python || !existsSync(python)) continue;
 		const check = spawnSync(python, ["-c", "import rlm.repl, mcp, rlm"], { encoding: "utf8" });
 		if (check.status === 0) return python;
@@ -62,7 +71,7 @@ describeIfKernel("real REPL kernel MCP shutdown", { tags: ["kernel-heavy"] }, ()
 	let pidFile = "";
 
 	beforeAll(() => {
-		dir = mkdtempSync(join(tmpdir(), "prime-agent-repl-mcp-shutdown-"));
+		dir = mkdtempSync(join(tmpdir(), "xenon-agent-repl-mcp-shutdown-"));
 		fixture = join(dir, "stdio_server.py");
 		pidFile = join(dir, "stdio.pid");
 		writeFileSync(fixture, MCP_SERVER);
@@ -75,7 +84,7 @@ describeIfKernel("real REPL kernel MCP shutdown", { tags: ["kernel-heavy"] }, ()
 	it("closes a stdio MCP child on graceful shutdown", async () => {
 		let manager: ReplKernelManager | undefined = new ReplKernelManager({
 			python: python as string,
-			cwd: resolve("../../prime-agent-runtime"),
+			cwd: resolve("../../xenon-agent-runtime"),
 			hostHandlers: {
 				"mcp.config": async () => ({
 					type: "stdio",

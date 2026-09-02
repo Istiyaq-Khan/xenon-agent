@@ -75,29 +75,29 @@ When closing issues via commit:
 - If the user approves: create a feature branch, pull PR, rebase on main, apply adjustments, commit, merge into main, push, close PR, and leave a comment in the user's tone
 - We work in feature branches until everything is according to the user's requirements. Never merge PRs by yourself.
 
-## Testing Prime Agent Interactive Mode with tmux
+## Testing Xenon Agent Interactive Mode with tmux
 
-To test Prime Agent's TUI in a controlled terminal environment:
+To test Xenon Agent's TUI in a controlled terminal environment:
 
 ```bash
 # Create tmux session with specific dimensions
-tmux new-session -d -s prime-agent-test -x 80 -y 24
+tmux new-session -d -s xenon-agent-test -x 80 -y 24
 
-# Start Prime Agent from source
-tmux send-keys -t prime-agent-test "cd /Users/kevin/pi/prime-agent && ./prime-agent.sh" Enter
+# Start Xenon Agent from source
+tmux send-keys -t xenon-agent-test "cd /path/to/xenon-agent && ./xenon-agent.sh" Enter
 
 # Wait for startup, then capture output
-sleep 3 && tmux capture-pane -t prime-agent-test -p
+sleep 3 && tmux capture-pane -t xenon-agent-test -p
 
 # Send input
-tmux send-keys -t prime-agent-test "your prompt here" Enter
+tmux send-keys -t xenon-agent-test "your prompt here" Enter
 
 # Send special keys
-tmux send-keys -t prime-agent-test Escape
-tmux send-keys -t prime-agent-test C-o  # ctrl+o
+tmux send-keys -t xenon-agent-test Escape
+tmux send-keys -t xenon-agent-test C-o  # ctrl+o
 
 # Cleanup
-tmux kill-session -t prime-agent-test
+tmux kill-session -t xenon-agent-test
 ```
 
 You, yourself, are often running into a tmux session, so be careful when killing tmux sessions. Lots of other processes can be running on different tmux sessions/
@@ -124,8 +124,8 @@ Example fragment (`packages/coding-agent/.changes/eng-1234-effort-command.md`):
 
 ### Attribution
 
-- **Internal changes (from issues)**: `Fixed foo bar ([#123](https://github.com/PrimeIntellect-ai/prime-agent/issues/123))`
-- **External contributions**: `Added feature X ([#456](https://github.com/PrimeIntellect-ai/prime-agent/pull/456) by [@username](https://github.com/username))`
+- **Internal changes (from issues)**: `Fixed foo bar ([#123](https://github.com/Istiyaq-Khan/xenon-agent/issues/123))`
+- **External contributions**: `Added feature X ([#456](https://github.com/Istiyaq-Khan/xenon-agent/pull/456) by [@username](https://github.com/username))`
 
 ## Adding a New LLM Provider (packages/ai)
 

@@ -106,7 +106,7 @@ input.on("line", (line) => {
 
 describe("IpythonKernelProvisioner", () => {
 	beforeEach(() => {
-		tempDir = mkdtempSync(join(tmpdir(), "prime-agent-provisioner-"));
+		tempDir = mkdtempSync(join(tmpdir(), "xenon-agent-provisioner-"));
 	});
 
 	afterEach(() => {
@@ -384,7 +384,7 @@ describe("IpythonKernelProvisioner", () => {
 
 describe("ReplKernelManager session cleanup during startup", () => {
 	beforeEach(() => {
-		tempDir = mkdtempSync(join(tmpdir(), "prime-agent-kernel-cleanup-"));
+		tempDir = mkdtempSync(join(tmpdir(), "xenon-agent-kernel-cleanup-"));
 	});
 
 	afterEach(() => {

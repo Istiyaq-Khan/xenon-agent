@@ -22,7 +22,7 @@ afterEach(() => {
 });
 
 function createTempDir(): string {
-	const directory = mkdtempSync(join(tmpdir(), "prime-session-lease-test-"));
+	const directory = mkdtempSync(join(tmpdir(), "xenon-session-lease-test-"));
 	tempDirs.push(directory);
 	return directory;
 }

@@ -10,7 +10,7 @@ import type { AuthCredential, AuthStatus } from "./auth-storage.js";
 import type { SettingsManager } from "./settings-manager.js";
 import { isBuiltinSlashCommandName, resolveBuiltinSlashCommandName } from "./slash-commands.js";
 
-const DEFAULT_TELEMETRY_ENDPOINT = "https://api.primeintellect.ai/api/v1/agent-analytics/events";
+const DEFAULT_TELEMETRY_ENDPOINT = "https://api.xenonintellect.ai/api/v1/agent-analytics/events";
 const TELEMETRY_STATE_FILE = "telemetry.json";
 const TELEMETRY_STATE_VERSION = 1;
 const DEFAULT_BATCH_SIZE = 10;
@@ -34,7 +34,7 @@ export type TelemetryAuthCategory =
 	| "api_key"
 	| "runtime_api_key"
 	| "environment"
-	| "prime_cli"
+	| "xenon_cli"
 	| "models_json"
 	| "fallback"
 	| "stale"
@@ -208,7 +208,7 @@ export function isTelemetryEnabled(settingsManager: SettingsManager): boolean {
 	if (parseBooleanOverride(process.env.DO_NOT_TRACK) === true) {
 		return false;
 	}
-	const override = parseBooleanOverride(process.env.PRIME_AGENT_TELEMETRY);
+	const override = parseBooleanOverride(process.env.XENON_AGENT_TELEMETRY ?? process.env.XENON_AGENT_TELEMETRY);
 	if (override !== undefined) {
 		return override;
 	}
@@ -321,7 +321,11 @@ export class TelemetryClient implements TelemetrySink {
 	private disabled = false;
 
 	constructor(private readonly options: TelemetryClientOptions) {
-		this.endpoint = options.endpoint ?? process.env.PRIME_AGENT_TELEMETRY_ENDPOINT ?? DEFAULT_TELEMETRY_ENDPOINT;
+		this.endpoint =
+			options.endpoint ??
+			process.env.XENON_AGENT_TELEMETRY_ENDPOINT ??
+			process.env.XENON_AGENT_TELEMETRY_ENDPOINT ??
+			DEFAULT_TELEMETRY_ENDPOINT;
 		this.fetchImpl = options.fetch ?? fetch;
 		this.now = options.now ?? Date.now;
 		this.randomId = options.randomId ?? randomUUID;
@@ -412,7 +416,7 @@ export class TelemetryClient implements TelemetrySink {
 				method: "POST",
 				headers: {
 					"content-type": "application/json",
-					"user-agent": `prime-agent/${VERSION}`,
+					"user-agent": `xenon-agent/${VERSION}`,
 				},
 				body: JSON.stringify(batch),
 				signal: AbortSignal.timeout(this.requestTimeoutMs),
@@ -451,7 +455,7 @@ export function telemetryProviderCategory(provider: string | undefined): string 
 		"anthropic",
 		"openai",
 		"google",
-		"prime",
+		"xenon",
 		"openrouter",
 		"bedrock",
 		"vertex",
@@ -473,8 +477,8 @@ export function telemetryAuthCategory(
 			return "runtime_api_key";
 		case "environment":
 			return "environment";
-		case "prime_cli":
-			return "prime_cli";
+		case "xenon_cli":
+			return "xenon_cli";
 		case "models_json_key":
 		case "models_json_command":
 			return "models_json";

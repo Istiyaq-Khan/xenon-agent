@@ -19,7 +19,7 @@ describe("daemon runtime session leases", () => {
 	});
 
 	it("releases an acquired lease when the runtime open guard cancels", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-daemon-runtime-lease-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-daemon-runtime-lease-"));
 		try {
 			vi.stubEnv(SESSION_LEASES_ENABLED_ENV, "1");
 			vi.stubEnv(SESSION_LEASE_OWNER_ID_ENV, "daemon-test");

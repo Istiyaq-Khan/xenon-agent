@@ -264,7 +264,7 @@ except ValueError as error:
 		const manager = await provisioner.ensure();
 		const result = await manager.execute(`
 from rlm import emit
-emit({"application/vnd.prime-agent.attachment+json": {"mime_type": "image/png", "data": "A" * 10_000_001}})
+emit({"application/vnd.xenon-agent.attachment+json": {"mime_type": "image/png", "data": "A" * 10_000_001}})
 print("done")
 `);
 

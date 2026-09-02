@@ -64,7 +64,7 @@ describe("resolveActiveSessionState", () => {
 
 describe("resolveDaemonSessionPath", () => {
 	it("raises when a saved session prefix matches multiple sessions", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-daemon-session-id-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-daemon-session-id-"));
 		try {
 			const cwd = join(tempDir, "project");
 			const sessionDir = join(tempDir, "sessions");
@@ -80,7 +80,7 @@ describe("resolveDaemonSessionPath", () => {
 	});
 
 	it("resolves the normalized suffix shown by the session list", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-daemon-session-id-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-daemon-session-id-"));
 		try {
 			const cwd = join(tempDir, "project");
 			const sessionDir = join(tempDir, "sessions");
@@ -94,7 +94,7 @@ describe("resolveDaemonSessionPath", () => {
 	});
 
 	it("raises when a saved session suffix matches multiple sessions", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-daemon-session-id-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-daemon-session-id-"));
 		try {
 			const cwd = join(tempDir, "project");
 			const sessionDir = join(tempDir, "sessions");
@@ -110,7 +110,7 @@ describe("resolveDaemonSessionPath", () => {
 	});
 
 	it("prefers an exact normalized ID over prefix and suffix matches", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-daemon-session-id-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-daemon-session-id-"));
 		try {
 			const cwd = join(tempDir, "project");
 			const sessionDir = join(tempDir, "sessions");

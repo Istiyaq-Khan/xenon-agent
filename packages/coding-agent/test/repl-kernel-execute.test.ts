@@ -13,9 +13,12 @@ import {
 
 function resolveReplPython(): string | null {
 	const candidates = [
-		process.env.PRIME_AGENT_KERNEL_PYTHON,
-		resolve(__dirname, "..", "..", "..", "prime-agent-runtime", ".venv", "bin", "python"),
-		join(homedir(), ".prime", "agent", "kernel-venv", "bin", "python"),
+		process.env.XENON_AGENT_KERNEL_PYTHON,
+		process.env.XENON_AGENT_KERNEL_PYTHON,
+		resolve(__dirname, "..", "..", "..", "xenon-agent-runtime", ".venv", "bin", "python"),
+		resolve(__dirname, "..", "..", "..", "xenon-agent-runtime", ".venv", "bin", "python"),
+		join(homedir(), ".xenon-agent", "kernel-venv", "bin", "python"),
+		join(homedir(), ".xenon", "agent", "kernel-venv", "bin", "python"),
 	].filter((p): p is string => Boolean(p));
 	for (const python of candidates) {
 		if (!existsSync(python)) continue;
@@ -33,7 +36,7 @@ describeIf("ReplKernelManager execute (real runtime)", () => {
 	let manager: ReplKernelManager | undefined;
 
 	beforeEach(() => {
-		dir = mkdtempSync(join(tmpdir(), "prime-agent-repl-execute-"));
+		dir = mkdtempSync(join(tmpdir(), "xenon-agent-repl-execute-"));
 	});
 
 	afterEach(async () => {

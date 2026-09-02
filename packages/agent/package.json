@@ -27,12 +27,16 @@
 		"transport",
 		"state-management"
 	],
-	"author": "Mario Zechner",
+	"author": "Istiyaq Khan Razin <https://github.com/Istiyaq-Khan>",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/PrimeIntellect-ai/prime-agent.git",
+		"url": "git+https://github.com/Istiyaq-Khan/xenon-agent.git",
 		"directory": "packages/agent"
+	},
+	"homepage": "https://github.com/Istiyaq-Khan/xenon-agent",
+	"bugs": {
+		"url": "https://github.com/Istiyaq-Khan/xenon-agent/issues"
 	},
 	"engines": {
 		"node": ">=20.0.0"

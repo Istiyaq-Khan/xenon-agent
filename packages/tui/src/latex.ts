@@ -193,7 +193,7 @@ const SYMBOLS: Record<string, string> = {
 	natural: "♮",
 	checkmark: "✓",
 	degree: "°",
-	prime: "′",
+	xenon: "′",
 	therefore: "∴",
 	because: "∵",
 	dots: "…",

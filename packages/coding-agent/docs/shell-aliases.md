@@ -1,8 +1,8 @@
 # Shell Aliases
 
-Prime Agent runs bash in non-interactive mode (`bash -c`), which doesn't expand aliases by default.
+Xenon Agent runs bash in non-interactive mode (`bash -c`), which doesn't expand aliases by default.
 
-To enable your shell aliases, add to `~/.prime/agent/settings.json`:
+To enable your shell aliases, add to `~/.xenon-agent/settings.json`:
 
 ```json
 {

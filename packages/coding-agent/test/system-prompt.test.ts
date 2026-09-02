@@ -259,8 +259,8 @@ describe("buildSystemPrompt", () => {
 						id: "validation",
 						kind: "memory",
 						title: "Validation",
-						content: "Run `npm run check` after PrimeAgent code changes.",
-						path: "repo/prime-agent",
+						content: "Run `npm run check` after XenonAgent code changes.",
+						path: "repo/xenon-agent",
 						reference: {},
 						arguments: {},
 						metadata: {},
@@ -332,7 +332,7 @@ describe("buildSystemPrompt", () => {
 		});
 
 		expect(prompt).toContain("# Continual Harness State");
-		expect(prompt).toContain("Local continual harness entries belong to this Prime Agent session");
+		expect(prompt).toContain("Local continual harness entries belong to this Xenon Agent session");
 		expect(prompt).toContain("The continual harness entries below are compact summaries, not full descriptions");
 		expect(prompt).toContain("Use global continual harness refinement only for stable cross-session lessons");
 		expect(prompt).toContain("When to call `await refine.run()`");
@@ -355,7 +355,7 @@ describe("buildSystemPrompt", () => {
 		expect(prompt).toContain("a narrow behavioral policy should become a prompt addendum");
 		expect(prompt).toContain("validation shows a continual harness entry is wrong");
 		expect(prompt).toContain("[global:focused_edits] Focused edits (policy, v1)");
-		expect(prompt).toContain("[global:validation] Validation (repo/prime-agent, v2): Run `npm run check`");
+		expect(prompt).toContain("[global:validation] Validation (repo/xenon-agent, v2): Run `npm run check`");
 		expect(prompt).toContain("[global:review_refinement] Review refinement (quality, v1)");
 		expect(prompt).toContain("[global:refinement_reviewer] Refinement reviewer (review, v1)");
 		expect(prompt).toContain("recent refinements: 1");

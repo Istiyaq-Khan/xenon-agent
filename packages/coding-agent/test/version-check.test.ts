@@ -7,10 +7,10 @@ import {
 	isNewerPackageVersion,
 } from "../src/utils/version-check.js";
 
-const defaultPrimeAgentDownloadBaseUrl = "https://pub-728493de92a943e2a9b2d17b4719f318.r2.dev";
+const defaultXenonAgentDownloadBaseUrl = "https://pub-728493de92a943e2a9b2d17b4719f318.r2.dev";
 const originalSkipVersionCheck = process.env.PI_SKIP_VERSION_CHECK;
 const originalOffline = process.env.PI_OFFLINE;
-const originalPrimeAgentDownloadBaseUrl = process.env.PRIME_AGENT_DOWNLOAD_BASE_URL;
+const originalXenonAgentDownloadBaseUrl = process.env.XENON_AGENT_DOWNLOAD_BASE_URL;
 
 function restoreEnv(name: string, value: string | undefined): void {
 	if (value === undefined) {
@@ -24,7 +24,8 @@ afterEach(() => {
 	vi.unstubAllGlobals();
 	restoreEnv("PI_SKIP_VERSION_CHECK", originalSkipVersionCheck);
 	restoreEnv("PI_OFFLINE", originalOffline);
-	restoreEnv("PRIME_AGENT_DOWNLOAD_BASE_URL", originalPrimeAgentDownloadBaseUrl);
+	restoreEnv("XENON_AGENT_DOWNLOAD_BASE_URL", originalXenonAgentDownloadBaseUrl);
+	restoreEnv("XENON_AGENT_DOWNLOAD_BASE_URL", originalXenonAgentDownloadBaseUrl);
 });
 
 describe("version checks", () => {
@@ -45,16 +46,16 @@ describe("version checks", () => {
 		await expect(checkForNewPiVersion("1.2.2")).resolves.toBe("1.2.3");
 	});
 
-	it("uses the Prime Agent release manifest with a Prime Agent user agent", async () => {
+	it("uses the Xenon Agent release manifest with a Xenon Agent user agent", async () => {
 		const fetchMock = vi.fn(async () => Response.json({ version: "v1.2.4" }));
 		vi.stubGlobal("fetch", fetchMock);
 
 		await expect(getLatestPiVersion("1.2.3")).resolves.toBe("1.2.4");
 		expect(fetchMock).toHaveBeenCalledWith(
-			`${defaultPrimeAgentDownloadBaseUrl}/latest.json`,
+			`${defaultXenonAgentDownloadBaseUrl}/latest.json`,
 			expect.objectContaining({
 				headers: expect.objectContaining({
-					"User-Agent": expect.stringMatching(/^prime-agent\/1\.2\.3 /),
+					"User-Agent": expect.stringMatching(/^xenon-agent\/1\.2\.3 /),
 					accept: "application/json",
 				}),
 			}),
@@ -66,22 +67,22 @@ describe("version checks", () => {
 		vi.stubGlobal("fetch", fetchMock);
 
 		await expect(getLatestPiVersion("1.2.4-beta.123.1.1234567")).resolves.toBe("1.2.4-beta.124.1.abcdef0");
-		expect(fetchMock).toHaveBeenCalledWith(`${defaultPrimeAgentDownloadBaseUrl}/beta.json`, expect.any(Object));
+		expect(fetchMock).toHaveBeenCalledWith(`${defaultXenonAgentDownloadBaseUrl}/beta.json`, expect.any(Object));
 	});
 
 	it("returns the active package and tarball install spec from the release manifest", async () => {
 		const fetchMock = vi.fn(async () =>
 			Response.json({
-				package: "prime-agent",
-				tarball: "releases/v1.2.4/prime-agent-1.2.4.tgz",
+				package: "xenon-agent",
+				tarball: "releases/v1.2.4/xenon-agent-1.2.4.tgz",
 				version: "v1.2.4",
 			}),
 		);
 		vi.stubGlobal("fetch", fetchMock);
 
 		await expect(getLatestPiRelease("1.2.3")).resolves.toEqual({
-			installSpec: `${defaultPrimeAgentDownloadBaseUrl}/releases/v1.2.4/prime-agent-1.2.4.tgz`,
-			packageName: "prime-agent",
+			installSpec: `${defaultXenonAgentDownloadBaseUrl}/releases/v1.2.4/xenon-agent-1.2.4.tgz`,
+			packageName: "xenon-agent",
 			version: "1.2.4",
 		});
 	});

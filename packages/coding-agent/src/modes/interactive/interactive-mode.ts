@@ -69,7 +69,7 @@ import {
 	type AgentTracePreviewResult,
 	type AgentTraceUploadAllResult,
 	type AgentTraceUploadResult,
-	getPrimeAgentTraceCredential,
+	getXenonAgentTraceCredential,
 	previewAgentTraceFile,
 	uploadAgentTraceFile,
 	uploadAllAgentTraces,
@@ -113,8 +113,6 @@ import {
 } from "../../core/messages.js";
 import { findExactModelReferenceMatch, resolveModelScopeFromModels } from "../../core/model-resolver.js";
 import { parseNewSessionCommand } from "../../core/new-session-command.js";
-import { resolvePrimeAgentTracesBaseUrl } from "../../core/prime-inference-auth.js";
-import { resolvePrimeInferencePostLoginModelAction } from "../../core/prime-inference-model-selection.js";
 import { parseCommandArgs } from "../../core/prompt-templates.js";
 import { formatMissingSessionCwdPrompt, MissingSessionCwdError } from "../../core/session-cwd.js";
 import { SessionImportFileNotFoundError } from "../../core/session-import-errors.js";
@@ -133,7 +131,9 @@ import {
 	type TelemetryOnboardingOutcome,
 } from "../../core/telemetry.js";
 import { type TruncationResult, truncateTail } from "../../core/tools/truncate.js";
-import { PRIME_BUTTERFLY_LOGO } from "../../themes/prime-logo.js";
+import { resolveXenonAgentTracesBaseUrl } from "../../core/xenon-inference-auth.js";
+import { resolveXenonInferencePostLoginModelAction } from "../../core/xenon-inference-model-selection.js";
+import { XENON_BUTTERFLY_LOGO } from "../../themes/xenon-logo.js";
 import { getChangelogPath, parseChangelog } from "../../utils/changelog.js";
 import { copyToClipboard } from "../../utils/clipboard.js";
 import { readClipboardImage } from "../../utils/clipboard-image.js";
@@ -207,7 +207,6 @@ import { InjectedPromptMessageComponent, isInjectedPromptMessage } from "./compo
 import { formatKeyText, keyHint, keyText, rawKeyHint } from "./components/keybinding-hints.js";
 import { createMermaidMarkdownTransform } from "./components/mermaid.js";
 import type { AuthSelectorProvider } from "./components/oauth-selector.js";
-import { PrimeOnboardingSplashComponent } from "./components/prime-onboarding-splash.js";
 import {
 	MalformedRefinementOutcomeMessageComponent,
 	RefinementOutcomeMessageComponent,
@@ -232,6 +231,7 @@ import {
 import { TreeSelectorComponent } from "./components/tree-selector.js";
 import { UserMessageComponent } from "./components/user-message.js";
 import { UserMessageSelectorComponent } from "./components/user-message-selector.js";
+import { XenonOnboardingSplashComponent } from "./components/xenon-onboarding-splash.js";
 import { FeatureHintDeck } from "./feature-hints.js";
 import { scopeHeartbeatsToSession } from "./heartbeat-scope.js";
 import {
@@ -250,7 +250,7 @@ import {
 	isOnboardingModelReady,
 	type OnboardingStartupState,
 	shouldRunOnboarding,
-	shouldRunPrimeCliOnboardingSplash,
+	shouldRunXenonCliOnboardingSplash,
 } from "./onboarding.js";
 import type { ClientPromptStashStore, PromptStash, PromptStashState } from "./prompt-stash-state.js";
 import { QueueSelection, type QueueSelectionItem } from "./queue-selection.js";
@@ -451,7 +451,7 @@ export class BrandSplashHeader implements Component {
 		private readonly verboseInstructions?: string,
 		private readonly options: BrandSplashHeaderOptions = {},
 	) {
-		this.logoRaw = (options.logo ?? PRIME_BUTTERFLY_LOGO).split("\n");
+		this.logoRaw = (options.logo ?? XENON_BUTTERFLY_LOGO).split("\n");
 		this.logoCanvasWidth = this.logoRaw.reduce((max, line) => Math.max(max, visibleWidth(line)), 0);
 	}
 
@@ -1711,8 +1711,8 @@ export class InteractiveMode {
 		return shouldRunOnboarding(this.getOnboardingState());
 	}
 
-	private shouldRunPrimeCliOnboardingSplash(): boolean {
-		return shouldRunPrimeCliOnboardingSplash(this.getOnboardingState());
+	private shouldRunXenonCliOnboardingSplash(): boolean {
+		return shouldRunXenonCliOnboardingSplash(this.getOnboardingState());
 	}
 
 	private markOnboardingShown(): void {
@@ -1727,12 +1727,12 @@ export class InteractiveMode {
 		}
 
 		const startedAt = Date.now();
-		const showPrimeCliSplash = this.shouldRunPrimeCliOnboardingSplash();
+		const showXenonCliSplash = this.shouldRunXenonCliOnboardingSplash();
 		let outcome: TelemetryOnboardingOutcome = "aborted";
 		try {
 			this.markOnboardingShown();
 			await this.settingsManager.flush();
-			await this.runOnboardingFlow(showPrimeCliSplash);
+			await this.runOnboardingFlow(showXenonCliSplash);
 			outcome = isOnboardingModelReady(this.getOnboardingState()) ? "success" : "aborted";
 			return true;
 		} catch (error) {
@@ -1762,9 +1762,9 @@ export class InteractiveMode {
 		}
 	}
 
-	private async runOnboardingFlow(showPrimeCliSplash = this.shouldRunPrimeCliOnboardingSplash()): Promise<void> {
+	private async runOnboardingFlow(showXenonCliSplash = this.shouldRunXenonCliOnboardingSplash()): Promise<void> {
 		this.modelRegistry.refresh();
-		if (showPrimeCliSplash) {
+		if (showXenonCliSplash) {
 			const splash = await this.showOnboardingSplash("choose a model");
 			if (!splash) {
 				return;
@@ -1785,8 +1785,8 @@ export class InteractiveMode {
 			return;
 		}
 
-		splash.showProgress("Signing in to Prime Intellect...");
-		const authResult = await this.createAuthFlows().runPrimeInferenceLogin();
+		splash.showProgress("Signing in to Xenon Intellect...");
+		const authResult = await this.createAuthFlows().runXenonInferenceLogin();
 		if (authResult.status !== "success") {
 			splash.dismiss();
 			return;
@@ -7494,7 +7494,7 @@ export class InteractiveMode {
 					transport: this.settingsManager.getTransport(),
 					thinkingLevel: state.thinkingLevel,
 					availableThinkingLevels: state.availableThinkingLevels,
-					currentTheme: this.settingsManager.getTheme() || "prime",
+					currentTheme: this.settingsManager.getTheme() || "xenon",
 					availableThemes: getAvailableThemes(),
 					hideThinkingBlock: this.hideThinkingBlock,
 					mermaidRenderingMode: this.settingsManager.getMermaidRenderingMode(),
@@ -8511,7 +8511,7 @@ export class InteractiveMode {
 			let settled = false;
 			let dismissed = false;
 			let handle: OverlayHandle | undefined;
-			let selector: PrimeOnboardingSplashComponent | undefined;
+			let selector: XenonOnboardingSplashComponent | undefined;
 			const settle = (result: OnboardingSplashHandle | undefined) => {
 				if (settled) {
 					return;
@@ -8528,7 +8528,7 @@ export class InteractiveMode {
 				handle?.hide();
 				this.ui.requestRender();
 			};
-			selector = new PrimeOnboardingSplashComponent(
+			selector = new XenonOnboardingSplashComponent(
 				() => {
 					selector?.dispose();
 					settle({
@@ -8579,7 +8579,7 @@ export class InteractiveMode {
 		// The agent core uses unknown/unknown as its no-model sentinel.
 		const selectedModel =
 			currentModel?.provider === "unknown" && currentModel.id === "unknown" ? undefined : currentModel;
-		let action = resolvePrimeInferencePostLoginModelAction(authResult, selectedModel, this.modelRegistry);
+		let action = resolveXenonInferencePostLoginModelAction(authResult, selectedModel, this.modelRegistry);
 		if (!action.openModelPicker) {
 			return false;
 		}
@@ -8587,7 +8587,7 @@ export class InteractiveMode {
 		if (!selectedModel) {
 			try {
 				const availableModels = await this.getConnectionAvailableModels();
-				action = resolvePrimeInferencePostLoginModelAction(authResult, selectedModel, {
+				action = resolveXenonInferencePostLoginModelAction(authResult, selectedModel, {
 					find: (provider, modelId) =>
 						availableModels.find((model) => model.provider === provider && model.id === modelId) ??
 						this.modelRegistry.find(provider, modelId),
@@ -8603,11 +8603,11 @@ export class InteractiveMode {
 				await this.settingsManager.flush();
 			} catch (error) {
 				this.showError(
-					`Prime Inference login succeeded, but the default model could not be selected: ${error instanceof Error ? error.message : String(error)}`,
+					`Xenon Inference login succeeded, but the default model could not be selected: ${error instanceof Error ? error.message : String(error)}`,
 				);
 			}
 		} else if (!selectedModel) {
-			this.showError("Prime Inference login succeeded, but the default GLM 5.2 model is unavailable.");
+			this.showError("Xenon Inference login succeeded, but the default GLM 5.2 model is unavailable.");
 		}
 
 		return true;
@@ -8657,7 +8657,7 @@ export class InteractiveMode {
 					verb === "removed"
 						? `Removed MCP server "${name}" (${transport}). It is no longer available through mcp.`
 						: usesOAuth
-							? `${verb === "replaced" ? "Replaced" : "Added"} MCP server "${name}" (${transport}). ${hasMcpProviderRefresh ? "Run" : "Restart Prime Agent, then run"} /mcp login ${name} to connect.`
+							? `${verb === "replaced" ? "Replaced" : "Added"} MCP server "${name}" (${transport}). ${hasMcpProviderRefresh ? "Run" : "Restart Xenon Agent, then run"} /mcp login ${name} to connect.`
 							: `${verb === "replaced" ? "Replaced" : "Added"} MCP server "${name}" (${transport}). Available next turn through mcp.`;
 				await this.reloadAfterMcpChange(usesOAuth ? successMessage : result.message, successMessage);
 			} else if (result.action === "list") {
@@ -9241,7 +9241,7 @@ export class InteractiveMode {
 			case "disabled":
 				return "Trace sharing is disabled.";
 			case "missing_credentials":
-				return "Trace sharing needs a Prime API key. Run /traces login.";
+				return "Trace sharing needs a Xenon API key. Run /traces login.";
 			case "no_session_file":
 				return "Current session has no persisted trace yet.";
 			case "empty_session":
@@ -9252,7 +9252,7 @@ export class InteractiveMode {
 				return `Trace upload skipped: session file is ${result.size.toLocaleString()} bytes; limit is ${result.maxBytes.toLocaleString()} bytes.`;
 			case "failed":
 				if (result.statusCode === 404) {
-					return "Trace upload endpoint was not found. The platform API may not be deployed yet, or PRIME_AGENT_TRACES_BASE_URL points at the wrong API.";
+					return "Trace upload endpoint was not found. The platform API may not be deployed yet, or XENON_AGENT_TRACES_BASE_URL points at the wrong API.";
 				}
 				return `Trace upload failed: ${result.statusCode ? `HTTP ${result.statusCode}: ` : ""}${result.message}. See ${getAgentTracesLogPath()} for details.`;
 		}
@@ -9353,14 +9353,14 @@ export class InteractiveMode {
 
 		if (command === "status") {
 			await this.settingsManager.reload().catch(() => undefined);
-			const credential = await getPrimeAgentTraceCredential(this.modelRegistry.authStorage);
+			const credential = await getXenonAgentTraceCredential(this.modelRegistry.authStorage);
 			const state = await this.agentConnection.getState();
 			const info = [
 				theme.bold("Trace Sharing"),
 				"",
 				`${theme.fg("dim", "Automatic uploads:")} ${this.settingsManager.getAgentTracesEnabled() ? "Enabled" : "Disabled"}`,
 				`${theme.fg("dim", "Credential:")} ${credential?.label ?? "Not configured"}`,
-				`${theme.fg("dim", "Endpoint:")} ${resolvePrimeAgentTracesBaseUrl()}`,
+				`${theme.fg("dim", "Endpoint:")} ${resolveXenonAgentTracesBaseUrl()}`,
 				`${theme.fg("dim", "Session file:")} ${state.sessionFile ?? "In-memory"}`,
 				"",
 				theme.fg(
@@ -9382,7 +9382,7 @@ export class InteractiveMode {
 		}
 
 		if (command === "login") {
-			await this.createAuthFlows().runPrimeAgentTracesLogin();
+			await this.createAuthFlows().runXenonAgentTracesLogin();
 			return;
 		}
 
@@ -9392,16 +9392,16 @@ export class InteractiveMode {
 		}
 
 		if (command === "on" || command === "enable") {
-			let credential = await getPrimeAgentTraceCredential(this.modelRegistry.authStorage);
+			let credential = await getXenonAgentTraceCredential(this.modelRegistry.authStorage);
 			if (!credential) {
-				const authResult = await this.createAuthFlows().runPrimeAgentTracesLogin();
+				const authResult = await this.createAuthFlows().runXenonAgentTracesLogin();
 				if (authResult.status !== "success") {
 					return;
 				}
-				credential = await getPrimeAgentTraceCredential(this.modelRegistry.authStorage);
+				credential = await getXenonAgentTraceCredential(this.modelRegistry.authStorage);
 			}
 			if (!credential) {
-				this.showError("Trace sharing needs a Prime API key.");
+				this.showError("Trace sharing needs a Xenon API key.");
 				return;
 			}
 
@@ -9417,9 +9417,9 @@ export class InteractiveMode {
 		}
 
 		if (command === "upload" || command === "upload-current") {
-			const credential = await getPrimeAgentTraceCredential(this.modelRegistry.authStorage);
+			const credential = await getXenonAgentTraceCredential(this.modelRegistry.authStorage);
 			if (!credential) {
-				this.showError("Trace sharing needs a Prime API key. Run /traces login.");
+				this.showError("Trace sharing needs a Xenon API key. Run /traces login.");
 				return;
 			}
 			const uploadResult = await this.uploadCurrentTraceOnce();
@@ -9433,9 +9433,9 @@ export class InteractiveMode {
 		}
 
 		if (command === "upload-all") {
-			const credential = await getPrimeAgentTraceCredential(this.modelRegistry.authStorage);
+			const credential = await getXenonAgentTraceCredential(this.modelRegistry.authStorage);
 			if (!credential) {
-				this.showError("Trace sharing needs a Prime API key. Run /traces login.");
+				this.showError("Trace sharing needs a Xenon API key. Run /traces login.");
 				return;
 			}
 			if (this.traceUploadAllAbortController) {

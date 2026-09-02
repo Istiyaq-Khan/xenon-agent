@@ -1,6 +1,6 @@
 import { appendFileSync, chmodSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type * as PiAi from "@earendil-works/pi-ai";
 import type { AssistantMessage, Model } from "@earendil-works/pi-ai";
@@ -56,7 +56,7 @@ afterEach(() => {
 });
 
 function makeTempDir(): string {
-	tempDir = mkdtempSync(join(tmpdir(), "prime-agent-refinement-test-"));
+	tempDir = mkdtempSync(join(tmpdir(), "xenon-agent-refinement-test-"));
 	return tempDir;
 }
 
@@ -82,8 +82,8 @@ function createRefineModel(reasoning: boolean): Model<"openai-completions"> {
 		id: "openai/gpt-5.5",
 		name: "GPT 5.5",
 		api: "openai-completions",
-		provider: "prime-inference",
-		baseUrl: "https://inference.primeintellect.ai/v1",
+		provider: "xenon-inference",
+		baseUrl: "https://inference.xenonintellect.ai/v1",
 		reasoning,
 		input: ["text"],
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -97,7 +97,7 @@ function assistantText(text: string): AssistantMessage {
 		role: "assistant",
 		content: [{ type: "text", text }],
 		api: "openai-completions",
-		provider: "prime-inference",
+		provider: "xenon-inference",
 		model: "openai/gpt-5.5",
 		usage: {
 			input: 1,
@@ -217,10 +217,12 @@ describe("harness refinement", () => {
 		const statePath = saveHarnessState(harnessStateDir, state);
 
 		expect(loadHarnessState(harnessStateDir).entries.memory.memory_entry).toBeDefined();
-		expect(readdirSync(harnessStateDir)).toEqual([statePath.split("/").at(-1)]);
-		chmodSync(statePath, 0o600);
-		saveHarnessState(harnessStateDir, state);
-		expect(statSync(statePath).mode & 0o777).toBe(0o600);
+		expect(readdirSync(harnessStateDir)).toEqual([basename(statePath)]);
+		if (process.platform !== "win32") {
+			chmodSync(statePath, 0o600);
+			saveHarnessState(harnessStateDir, state);
+			expect(statSync(statePath).mode & 0o777).toBe(0o600);
+		}
 	});
 
 	it("applies create, update, and delete for every editable harness kind", () => {
@@ -690,11 +692,19 @@ describe("harness refinement", () => {
 	);
 
 	it("extracts refinement history from custom session entries", () => {
-		const result: RefinementResult = {
+		const result1: RefinementResult = {
 			id: "refine_1",
 			summary: "Add skill",
 			rationale: "Repeated failure.",
 			expectedOutcome: "Better validation.",
+			appliedEdits: [],
+			harnessStatePath: "/tmp/harness_state.json",
+		};
+		const result2: RefinementResult = {
+			id: "refine_2",
+			summary: "Add memory",
+			rationale: "Pattern observed.",
+			expectedOutcome: "Remembered rule.",
 			appliedEdits: [],
 			harnessStatePath: "/tmp/harness_state.json",
 		};
@@ -709,23 +719,31 @@ describe("harness refinement", () => {
 			},
 			{
 				type: "custom",
-				customType: "prime-agent.refinement",
-				data: result,
+				customType: "xenon-agent.refinement",
+				data: result1,
 				id: "custom_2",
 				parentId: "custom_1",
 				timestamp: new Date().toISOString(),
 			},
 			{
 				type: "custom",
-				customType: "prime-agent.refinement",
+				customType: "xenon-agent.refinement",
+				data: result2,
+				id: "custom_3",
+				parentId: "custom_2",
+				timestamp: new Date().toISOString(),
+			},
+			{
+				type: "custom",
+				customType: "xenon-agent.refinement",
 				data: { id: "malformed" },
 				id: "custom_malformed",
-				parentId: "custom_2",
+				parentId: "custom_3",
 				timestamp: new Date().toISOString(),
 			},
 		];
 
-		expect(getRefinementHistory(entries)).toEqual([result]);
+		expect(getRefinementHistory(entries)).toEqual([result1, result2]);
 	});
 
 	it.each(kinds)("rejects duplicate create for %s entries", (kind) => {

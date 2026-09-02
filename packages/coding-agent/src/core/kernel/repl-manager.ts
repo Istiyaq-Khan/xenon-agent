@@ -1,6 +1,6 @@
 // Kernel client for the REPL runtime: the kernel is a JSON-lines subprocess
 // (`python -m rlm.repl`) — requests on stdin, events on stdout, stderr kept as
-// a diagnostics tail. The protocol is documented in prime-agent-runtime/src/rlm/repl.md.
+// a diagnostics tail. The protocol is documented in xenon-agent-runtime/src/rlm/repl.md.
 import { type ChildProcess, spawn } from "node:child_process";
 import { StringDecoder } from "node:string_decoder";
 import { v4 as uuid } from "uuid";
@@ -87,7 +87,7 @@ interface ActiveExecution {
 	reject: (error: Error) => void;
 }
 
-// Complete event vocabulary of protocol version 2 (see prime-agent-runtime/src/rlm/repl.md).
+// Complete event vocabulary of protocol version 2 (see xenon-agent-runtime/src/rlm/repl.md).
 // The version handshake is exact, so an unknown kind is corruption, not a newer runtime.
 const PROTOCOL_EVENT_KINDS = new Set([
 	"ready",
@@ -256,7 +256,7 @@ export class ReplKernelManager {
 			env: {
 				...process.env,
 				...this.options.env,
-				PRIME_AGENT_KERNEL_OWNER_PID: String(process.pid),
+				XENON_AGENT_KERNEL_OWNER_PID: String(process.pid),
 			},
 			stdio: ["pipe", "pipe", "pipe"],
 		});
@@ -276,7 +276,7 @@ export class ReplKernelManager {
 			if (protocol !== REPL_PROTOCOL_VERSION) {
 				throw new Error(
 					`Kernel runtime speaks protocol ${protocol}, expected ${REPL_PROTOCOL_VERSION}. ` +
-						"Update prime-agent-runtime in the kernel Python (PRIME_AGENT_KERNEL_PYTHON) to match this prime-agent.",
+						"Update xenon-agent-runtime in the kernel Python (XENON_AGENT_KERNEL_PYTHON) to match this xenon-agent.",
 				);
 			}
 		} catch (e) {
@@ -374,7 +374,7 @@ export class ReplKernelManager {
 			this.protocolRepairOwner.superseded = true;
 			// performRestore clears pendingRestore, so it still being set means the
 			// corruption struck at or before the restore phase: the snapshot stays
-			// the prime suspect (ambiguous attribution, loop-safe — retrying it
+			// the xenon suspect (ambiguous attribution, loop-safe — retrying it
 			// would re-trigger the corruption). Corruption strictly after a
 			// successful restore never implicates the snapshot; keeping the flag
 			// costs at most one bounded restore per later attempt.

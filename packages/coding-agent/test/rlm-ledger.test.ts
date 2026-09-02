@@ -72,7 +72,7 @@ function makeChildSession(root: string, dir: string, parentFile: string, depth: 
 
 describe("rlm spawn ledger", () => {
 	it("replays spawn, rename, and delete records last-writer-wins", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-"));
 		try {
 			const { sessionsDir, parentFile } = makeRoots(root);
 			const ledger = new RlmSpawnLedger(root, sessionsDir);
@@ -106,7 +106,7 @@ describe("rlm spawn ledger", () => {
 	});
 
 	it("rejects a duplicate canonical child path at append", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-dup-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-dup-"));
 		try {
 			const { sessionsDir, parentFile } = makeRoots(root);
 			const ledger = new RlmSpawnLedger(root, sessionsDir);
@@ -127,7 +127,7 @@ describe("rlm spawn ledger", () => {
 	});
 
 	it("fails closed on a malformed ledger line", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-malformed-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-malformed-"));
 		try {
 			const { sessionsDir, parentFile } = makeRoots(root);
 			const ledger = new RlmSpawnLedger(root, sessionsDir);
@@ -152,7 +152,7 @@ describe("rlm spawn ledger", () => {
 	});
 
 	it("tolerates one torn final line without a trailing newline, but not mid-file", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-torn-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-torn-"));
 		try {
 			const { sessionsDir, parentFile } = makeRoots(root);
 			const ledger = new RlmSpawnLedger(root, sessionsDir);
@@ -189,7 +189,7 @@ describe("rlm spawn ledger", () => {
 	});
 
 	it("repairs a torn tail by byte offset, preserving preceding multi-byte UTF-8 records", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-utf8-torn-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-utf8-torn-"));
 		try {
 			const { sessionsDir, parentFile } = makeRoots(root);
 			const ledger = new RlmSpawnLedger(root, sessionsDir);
@@ -221,7 +221,7 @@ describe("rlm spawn ledger", () => {
 	});
 
 	it("skips v1 records with unknown ops instead of failing the whole ledger", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-forward-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-forward-"));
 		try {
 			const { sessionsDir, parentFile } = makeRoots(root);
 			const ledger = new RlmSpawnLedger(root, sessionsDir);
@@ -252,7 +252,7 @@ describe("rlm spawn ledger", () => {
 	});
 
 	it("fails closed on byte and record bounds", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-bounds-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-bounds-"));
 		try {
 			const { sessionsDir } = makeRoots(root);
 			const oversized = new RlmSpawnLedger(root, sessionsDir);
@@ -275,7 +275,7 @@ describe("rlm spawn ledger", () => {
 	});
 
 	it("builds families from roots plus live edges and drops dead entries", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-family-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-family-"));
 		try {
 			const { sessionsDir, parent, parentFile } = makeRoots(root);
 			const other = SessionManager.create(root, sessionsDir);
@@ -332,7 +332,7 @@ describe("rlm spawn ledger", () => {
 	});
 
 	it("drops a depth-contradictory edge without failing the rest of the family", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-depth-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-depth-"));
 		try {
 			const { sessionsDir, parent, parentFile } = makeRoots(root);
 			const artifactDir = parent.getSessionArtifactDir();
@@ -364,7 +364,7 @@ describe("rlm spawn ledger", () => {
 	});
 
 	it("never passes header-claimed topology through for roots (fork headers)", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-fork-root-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-fork-root-"));
 		try {
 			const { sessionsDir, parentFile } = makeRoots(root);
 			// A fork: header carries parentSession, so readSessionInfo reports a
@@ -386,7 +386,7 @@ describe("rlm spawn ledger", () => {
 	});
 
 	it("returns the surviving child alone when its parent file is gone", async () => {
-		const root = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-orphan-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-orphan-"));
 		try {
 			const { sessionsDir, parent, parentFile } = makeRoots(root);
 			const artifactDir = parent.getSessionArtifactDir();
@@ -417,7 +417,7 @@ describe("rlm spawn ledger", () => {
 		// A nested daemon's sessions dir has roots that legitimately carry
 		// env-derived depths > 0: an edge at depth 3 whose parent is a root must
 		// not be dropped against an assumed root depth of 0.
-		const root = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-nested-root-"));
+		const root = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-nested-root-"));
 		try {
 			const { sessionsDir, parent, parentFile } = makeRoots(root);
 			const artifactDir = parent.getSessionArtifactDir();
@@ -533,7 +533,7 @@ function subagentRuntimeOptions(
 
 describe("rlm spawn ledger daemon wiring", () => {
 	it("appends spawn at admission, rename at the rename write point, and delete with a reason", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-wiring-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-wiring-"));
 		try {
 			const { internals, sessionsDir } = makeDaemonFixture(tempDir);
 			const parentManager = SessionManager.create(tempDir, sessionsDir);
@@ -599,7 +599,7 @@ describe("rlm spawn ledger daemon wiring", () => {
 	});
 
 	it("fails admission when the spawn record cannot be made durable", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-spawn-fail-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-spawn-fail-"));
 		try {
 			const { internals, sessionsDir } = makeDaemonFixture(tempDir);
 			const parentManager = SessionManager.create(tempDir, sessionsDir);
@@ -639,7 +639,7 @@ describe("rlm spawn ledger daemon wiring", () => {
 	});
 
 	it("records an offline saved-session rename by child path", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-offline-rename-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-offline-rename-"));
 		try {
 			const { internals, sessionsDir } = makeDaemonFixture(tempDir);
 			const parentManager = SessionManager.create(tempDir, sessionsDir);
@@ -670,7 +670,7 @@ describe("rlm spawn ledger daemon wiring", () => {
 	});
 
 	it("seeds a missing ledger lazily from real-shaped registries, memoized", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-seed-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-seed-"));
 		try {
 			const sessionsDir = join(tempDir, "sessions");
 			const parentManager = SessionManager.create(tempDir, sessionsDir);
@@ -783,7 +783,7 @@ describe("rlm spawn ledger daemon wiring", () => {
 	});
 
 	it("keeps a registry entry whose optional rlmMaxDepth is damaged, dropping only the field", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-damaged-maxdepth-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-damaged-maxdepth-"));
 		try {
 			const registryPath = join(tempDir, "rlm-subagents.jsonl");
 			const entry = (childId: string, overrides: Record<string, unknown>) => ({
@@ -817,7 +817,7 @@ describe("rlm spawn ledger daemon wiring", () => {
 	});
 
 	it("leaves no ledger file behind an interrupted seed and re-seeds completely", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-seed-crash-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-seed-crash-"));
 		try {
 			const sessionsDir = join(tempDir, "sessions");
 			const parentManager = SessionManager.create(tempDir, sessionsDir);
@@ -861,7 +861,7 @@ describe("rlm spawn ledger daemon wiring", () => {
 	});
 
 	it("discards the seed when a live append creates the ledger during seeding", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-seed-race-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-seed-race-"));
 		try {
 			const sessionsDir = join(tempDir, "sessions");
 			const parentManager = SessionManager.create(tempDir, sessionsDir);
@@ -912,7 +912,7 @@ describe("rlm spawn ledger daemon wiring", () => {
 	});
 
 	it("skips seeding entirely when the seed would exceed the read bounds", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-seed-bounds-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-seed-bounds-"));
 		try {
 			const sessionsDir = join(tempDir, "sessions");
 			const parentManager = SessionManager.create(tempDir, sessionsDir);
@@ -951,7 +951,7 @@ describe("rlm spawn ledger daemon wiring", () => {
 	});
 
 	it("skips seeding on filesystems without hard links instead of racing a clobber", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-seed-nolink-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-seed-nolink-"));
 		try {
 			const sessionsDir = join(tempDir, "sessions");
 			const parentManager = SessionManager.create(tempDir, sessionsDir);
@@ -1001,7 +1001,7 @@ describe("rlm spawn ledger daemon wiring", () => {
 	});
 
 	it("degrades to a flat family when seeding fails instead of failing closed", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-seedfail-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-seedfail-"));
 		try {
 			const sessionsDir = join(tempDir, "sessions");
 			const parentManager = SessionManager.create(tempDir, sessionsDir);
@@ -1040,7 +1040,7 @@ interface SupervisorLedgerInternals {
 
 describe("rlm spawn ledger supervisor wiring", () => {
 	it("reserves saved-sibling names against ledger-backed siblings", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-supervisor-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-supervisor-"));
 		try {
 			const sessionsDir = join(tempDir, "sessions");
 			const parentManager = SessionManager.create(tempDir, sessionsDir);
@@ -1088,7 +1088,7 @@ describe("rlm spawn ledger supervisor wiring", () => {
 	});
 
 	it("appends a ledger rename for an offline saved-session rename", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "prime-rlm-ledger-supervisor-rename-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "xenon-rlm-ledger-supervisor-rename-"));
 		try {
 			const sessionsDir = join(tempDir, "sessions");
 			const parentManager = SessionManager.create(tempDir, sessionsDir);

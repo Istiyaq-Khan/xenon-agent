@@ -63,7 +63,8 @@ export interface Args {
 const REMOVED_BUILTIN_TOOL_NAMES = new Set(["read", "write", "grep", "find", "ls"]);
 const BUILTIN_TOOL_NAMES = ["ipython"];
 
-export const INTERNAL_RUNTIME_COMMAND_MARKER = "\0prime-agent-runtime-command";
+export const INTERNAL_RUNTIME_COMMAND_MARKER = "\0xenon-agent-runtime-command";
+export const LEGACY_INTERNAL_RUNTIME_COMMAND_MARKER = "\0xenon-agent-runtime-command";
 
 export function isValidThinkingLevel(level: string): level is ThinkingLevel {
 	return THINKING_LEVELS.includes(level as ThinkingLevel);
@@ -78,7 +79,8 @@ export function parseArgs(args: string[]): Args {
 	};
 
 	let endOfOptions = false;
-	const internalRuntimeCommand = args[0] === INTERNAL_RUNTIME_COMMAND_MARKER;
+	const internalRuntimeCommand =
+		args[0] === INTERNAL_RUNTIME_COMMAND_MARKER || args[0] === LEGACY_INTERNAL_RUNTIME_COMMAND_MARKER;
 	const firstArgIndex = internalRuntimeCommand ? 1 : 0;
 
 	for (let i = firstArgIndex; i < args.length; i++) {

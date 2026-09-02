@@ -29,18 +29,18 @@ import type { Validator } from "typebox/compile";
 import type { TLocalizedValidationError } from "typebox/error";
 import { getAgentDir } from "../config.js";
 import type { AuthSourceToken, AuthStatus, AuthStorage } from "./auth-storage.js";
-import { PRIME_INFERENCE_PROVIDER_ID } from "./prime-inference-auth.js";
-import {
-	fetchAuthorizedPrivatePrimeInferenceModelIds,
-	getPrivatePrimeInferenceModels,
-	isPrivatePrimeInferenceModel,
-} from "./prime-inference-models.js";
 import { BUILT_IN_PROVIDER_DISPLAY_NAMES } from "./provider-display-names.js";
 import {
 	resolveConfigValueOrThrow,
 	resolveConfigValueUncached,
 	resolveHeadersOrThrow,
 } from "./resolve-config-value.js";
+import { XENON_INFERENCE_PROVIDER_ID } from "./xenon-inference-auth.js";
+import {
+	fetchAuthorizedPrivateXenonInferenceModelIds,
+	getPrivateXenonInferenceModels,
+	isPrivateXenonInferenceModel,
+} from "./xenon-inference-models.js";
 
 const PercentileCutoffsSchema = Type.Object({
 	p50: Type.Optional(Type.Number()),
@@ -363,12 +363,12 @@ function readOpenAICodexAccountId(token: string): string | undefined {
 /**
  * The Codex backend gates its model catalog on the reported client version: it answers HTTP 200 with a
  * catalog that grows as the version rises, so a low version yields a silently empty or partial list rather
- * than an error. Prime Agent's own package version is far below the Codex CLI's version line, so it must
+ * than an error. Xenon Agent's own package version is far below the Codex CLI's version line, so it must
  * report a supported Codex client version here instead.
  *
  * Shipping a new Codex model takes two edits, and both are required:
  * 1. Add the model to `codexModels` in `packages/ai/scripts/generate-models.ts` and regenerate. That list is
- *    explicit, not fetched, so an unlisted model does not exist for Prime Agent at all.
+ *    explicit, not fetched, so an unlisted model does not exist for Xenon Agent at all.
  * 2. Raise this constant to a Codex CLI release whose catalog includes that model. `getExecutableModels()`
  *    below intersects the registry with the discovered catalog, so a listed model the catalog omits is
  *    dropped.
@@ -410,17 +410,17 @@ function readOpenAICodexModelIds(value: unknown): Set<string> {
 	);
 }
 
-const PRIVATE_PRIME_AUTHORIZATION_CACHE_FILE = "prime-inference-private-models.json";
-const PRIVATE_PRIME_AUTHORIZATION_CACHE_TTL_MS = 5 * 60_000;
-const PRIVATE_PRIME_BACKGROUND_REFRESH_TIMEOUT_MS = 3_000;
+const PRIVATE_XENON_AUTHORIZATION_CACHE_FILE = "xenon-inference-private-models.json";
+const PRIVATE_XENON_AUTHORIZATION_CACHE_TTL_MS = 5 * 60_000;
+const PRIVATE_XENON_BACKGROUND_REFRESH_TIMEOUT_MS = 3_000;
 
-interface PrivatePrimeAuthorizationCache {
+interface PrivateXenonAuthorizationCache {
 	fingerprint: string;
 	modelIds: Set<string>;
 	refreshedAt: number;
 }
 
-function privatePrimeAuthorizationFingerprint(apiKey: string, teamId: string): string {
+function privateXenonAuthorizationFingerprint(apiKey: string, teamId: string): string {
 	return createHash("sha256").update(apiKey).update("\0").update(teamId).digest("hex");
 }
 
@@ -440,11 +440,11 @@ export class ModelRegistry {
 	private lastProviderAuthSourceTokens: Map<string, AuthSourceToken> = new Map();
 	private modelRequestHeaders: Map<string, Record<string, string>> = new Map();
 	private registeredProviders: Map<string, ProviderConfigInput> = new Map();
-	private authorizedPrivatePrimeInferenceModelIds = new Set<string>();
-	private authorizedPrivatePrimeInferenceTeamId: string | undefined;
-	private explicitPrivatePrimeInferenceModelIds = new Set<string>();
+	private authorizedPrivateXenonInferenceModelIds = new Set<string>();
+	private authorizedPrivateXenonInferenceTeamId: string | undefined;
+	private explicitPrivateXenonInferenceModelIds = new Set<string>();
 	private openAICodexModelsCache: { authFingerprint: string; modelIds: Set<string>; refreshedAt: number } | undefined;
-	private backgroundPrivatePrimeAuthorization: { fingerprint: string; promise: Promise<void> } | undefined;
+	private backgroundPrivateXenonAuthorization: { fingerprint: string; promise: Promise<void> } | undefined;
 	private loadError: string | undefined = undefined;
 
 	/** Re-register dynamic OAuth providers (e.g. user MCP servers) after refresh() resets the registry. */
@@ -476,9 +476,9 @@ export class ModelRegistry {
 		this.providerRequestConfigs.clear();
 		this.modelRequestHeaders.clear();
 		this.lastProviderAuthSourceTokens.clear();
-		this.authorizedPrivatePrimeInferenceModelIds.clear();
-		this.authorizedPrivatePrimeInferenceTeamId = undefined;
-		this.explicitPrivatePrimeInferenceModelIds.clear();
+		this.authorizedPrivateXenonInferenceModelIds.clear();
+		this.authorizedPrivateXenonInferenceTeamId = undefined;
+		this.explicitPrivateXenonInferenceModelIds.clear();
 		this.loadError = undefined;
 
 		// Credentials may have been written by another process (e.g. the UI
@@ -522,10 +522,10 @@ export class ModelRegistry {
 			this.loadError = error;
 		}
 
-		this.explicitPrivatePrimeInferenceModelIds = new Set(
-			customModels.filter(isPrivatePrimeInferenceModel).map((model) => model.id),
+		this.explicitPrivateXenonInferenceModelIds = new Set(
+			customModels.filter(isPrivateXenonInferenceModel).map((model) => model.id),
 		);
-		const builtInModels = [...this.loadBuiltInModels(overrides, modelOverrides), ...getPrivatePrimeInferenceModels()];
+		const builtInModels = [...this.loadBuiltInModels(overrides, modelOverrides), ...getPrivateXenonInferenceModels()];
 		let combined = this.mergeCustomModels(builtInModels, customModels);
 
 		for (const oauthProvider of this.authStorage.getOAuthProviders()) {
@@ -763,9 +763,9 @@ export class ModelRegistry {
 	getAvailable(): Model<Api>[] {
 		return this.models.filter((model) => {
 			if (
-				isPrivatePrimeInferenceModel(model) &&
-				!this.explicitPrivatePrimeInferenceModelIds.has(model.id) &&
-				!this.authorizedPrivatePrimeInferenceModelIds.has(model.id)
+				isPrivateXenonInferenceModel(model) &&
+				!this.explicitPrivateXenonInferenceModelIds.has(model.id) &&
+				!this.authorizedPrivateXenonInferenceModelIds.has(model.id)
 			) {
 				return false;
 			}
@@ -774,67 +774,67 @@ export class ModelRegistry {
 	}
 
 	async refreshAvailableModels(): Promise<Model<Api>[]> {
-		const previousPrivateModelIds = new Set(this.authorizedPrivatePrimeInferenceModelIds);
-		const previousTeamId = this.authorizedPrivatePrimeInferenceTeamId;
+		const previousPrivateModelIds = new Set(this.authorizedPrivateXenonInferenceModelIds);
+		const previousTeamId = this.authorizedPrivateXenonInferenceTeamId;
 		this.refresh();
-		await this.refreshPrivatePrimeInferenceAuthorization(previousPrivateModelIds, previousTeamId);
+		await this.refreshPrivateXenonInferenceAuthorization(previousPrivateModelIds, previousTeamId);
 		return this.getAvailable();
 	}
 
-	private async refreshPrivatePrimeInferenceAuthorization(
-		previousPrivateModelIds = new Set(this.authorizedPrivatePrimeInferenceModelIds),
-		previousTeamId = this.authorizedPrivatePrimeInferenceTeamId,
+	private async refreshPrivateXenonInferenceAuthorization(
+		previousPrivateModelIds = new Set(this.authorizedPrivateXenonInferenceModelIds),
+		previousTeamId = this.authorizedPrivateXenonInferenceTeamId,
 	): Promise<void> {
-		const apiKey = await this.authStorage.getApiKey(PRIME_INFERENCE_PROVIDER_ID);
-		const teamHeaders = this.authStorage.getProviderHeaders(PRIME_INFERENCE_PROVIDER_ID);
-		const teamId = teamHeaders?.["X-Prime-Team-ID"];
+		const apiKey = await this.authStorage.getApiKey(XENON_INFERENCE_PROVIDER_ID);
+		const teamHeaders = this.authStorage.getProviderHeaders(XENON_INFERENCE_PROVIDER_ID);
+		const teamId = teamHeaders?.["X-Xenon-Team-ID"];
 		if (!apiKey || !teamHeaders || !teamId) {
-			this.authorizedPrivatePrimeInferenceModelIds.clear();
-			this.authorizedPrivatePrimeInferenceTeamId = undefined;
+			this.authorizedPrivateXenonInferenceModelIds.clear();
+			this.authorizedPrivateXenonInferenceTeamId = undefined;
 			return;
 		}
 
-		const fingerprint = privatePrimeAuthorizationFingerprint(apiKey, teamId);
-		const cached = this.readPrivatePrimeAuthorizationCache();
+		const fingerprint = privateXenonAuthorizationFingerprint(apiKey, teamId);
+		const cached = this.readPrivateXenonAuthorizationCache();
 		if (cached?.fingerprint === fingerprint) {
 			// Serve the persisted authorization decision so startup and model lists
 			// don't block on the network. A stale cache refreshes in the background
 			// and the updated ids apply to subsequent lookups in this process.
-			this.authorizedPrivatePrimeInferenceModelIds = new Set(cached.modelIds);
-			this.authorizedPrivatePrimeInferenceTeamId = teamId;
-			const cacheIsFresh = Date.now() - cached.refreshedAt < PRIVATE_PRIME_AUTHORIZATION_CACHE_TTL_MS;
+			this.authorizedPrivateXenonInferenceModelIds = new Set(cached.modelIds);
+			this.authorizedPrivateXenonInferenceTeamId = teamId;
+			const cacheIsFresh = Date.now() - cached.refreshedAt < PRIVATE_XENON_AUTHORIZATION_CACHE_TTL_MS;
 			if (cacheIsFresh || isOfflineModeEnabled()) {
 				return;
 			}
-			this.startBackgroundPrivatePrimeAuthorizationRefresh(apiKey, teamHeaders, teamId, fingerprint);
+			this.startBackgroundPrivateXenonAuthorizationRefresh(apiKey, teamHeaders, teamId, fingerprint);
 			return;
 		}
 		if (isOfflineModeEnabled()) {
-			this.authorizedPrivatePrimeInferenceModelIds.clear();
-			this.authorizedPrivatePrimeInferenceTeamId = undefined;
+			this.authorizedPrivateXenonInferenceModelIds.clear();
+			this.authorizedPrivateXenonInferenceTeamId = undefined;
 			return;
 		}
 
 		let authorizedIds: Set<string> | undefined;
 		try {
-			authorizedIds = await fetchAuthorizedPrivatePrimeInferenceModelIds(apiKey, teamHeaders);
+			authorizedIds = await fetchAuthorizedPrivateXenonInferenceModelIds(apiKey, teamHeaders);
 		} catch {
 			// Fall back to the previous authorization below.
 		}
 		// Leave newer state untouched if the credentials changed while fetching.
-		if ((await this.currentPrivatePrimeAuthorizationFingerprint()) !== fingerprint) {
+		if ((await this.currentPrivateXenonAuthorizationFingerprint()) !== fingerprint) {
 			return;
 		}
 		if (authorizedIds) {
-			this.authorizedPrivatePrimeInferenceModelIds = authorizedIds;
-			this.authorizedPrivatePrimeInferenceTeamId = teamId;
-			this.writePrivatePrimeAuthorizationCache({ fingerprint, modelIds: authorizedIds, refreshedAt: Date.now() });
+			this.authorizedPrivateXenonInferenceModelIds = authorizedIds;
+			this.authorizedPrivateXenonInferenceTeamId = teamId;
+			this.writePrivateXenonAuthorizationCache({ fingerprint, modelIds: authorizedIds, refreshedAt: Date.now() });
 		} else if (teamId === previousTeamId) {
-			this.authorizedPrivatePrimeInferenceModelIds = previousPrivateModelIds;
-			this.authorizedPrivatePrimeInferenceTeamId = teamId;
+			this.authorizedPrivateXenonInferenceModelIds = previousPrivateModelIds;
+			this.authorizedPrivateXenonInferenceTeamId = teamId;
 		} else {
-			this.authorizedPrivatePrimeInferenceModelIds.clear();
-			this.authorizedPrivatePrimeInferenceTeamId = undefined;
+			this.authorizedPrivateXenonInferenceModelIds.clear();
+			this.authorizedPrivateXenonInferenceTeamId = undefined;
 		}
 	}
 
@@ -844,64 +844,64 @@ export class ModelRegistry {
 	 * refresh is queued after the in-flight one, and a result is only applied
 	 * if the credentials it was fetched with are still current.
 	 */
-	private startBackgroundPrivatePrimeAuthorizationRefresh(
+	private startBackgroundPrivateXenonAuthorizationRefresh(
 		apiKey: string,
 		teamHeaders: Record<string, string>,
 		teamId: string,
 		fingerprint: string,
 	): void {
-		if (this.backgroundPrivatePrimeAuthorization?.fingerprint === fingerprint) {
+		if (this.backgroundPrivateXenonAuthorization?.fingerprint === fingerprint) {
 			return;
 		}
 		const run = async () => {
 			try {
-				const authorizedIds = await fetchAuthorizedPrivatePrimeInferenceModelIds(
+				const authorizedIds = await fetchAuthorizedPrivateXenonInferenceModelIds(
 					apiKey,
 					teamHeaders,
 					undefined,
-					PRIVATE_PRIME_BACKGROUND_REFRESH_TIMEOUT_MS,
+					PRIVATE_XENON_BACKGROUND_REFRESH_TIMEOUT_MS,
 				);
-				if ((await this.currentPrivatePrimeAuthorizationFingerprint()) !== fingerprint) {
+				if ((await this.currentPrivateXenonAuthorizationFingerprint()) !== fingerprint) {
 					return;
 				}
-				this.authorizedPrivatePrimeInferenceModelIds = authorizedIds;
-				this.authorizedPrivatePrimeInferenceTeamId = teamId;
-				this.writePrivatePrimeAuthorizationCache({ fingerprint, modelIds: authorizedIds, refreshedAt: Date.now() });
+				this.authorizedPrivateXenonInferenceModelIds = authorizedIds;
+				this.authorizedPrivateXenonInferenceTeamId = teamId;
+				this.writePrivateXenonAuthorizationCache({ fingerprint, modelIds: authorizedIds, refreshedAt: Date.now() });
 			} catch {
 				// Keep the cached authorization.
 			}
 		};
-		const pending = this.backgroundPrivatePrimeAuthorization?.promise;
+		const pending = this.backgroundPrivateXenonAuthorization?.promise;
 		const promise = (pending ?? Promise.resolve()).then(run);
-		this.backgroundPrivatePrimeAuthorization = { fingerprint, promise };
+		this.backgroundPrivateXenonAuthorization = { fingerprint, promise };
 		void promise.finally(() => {
-			if (this.backgroundPrivatePrimeAuthorization?.promise === promise) {
-				this.backgroundPrivatePrimeAuthorization = undefined;
+			if (this.backgroundPrivateXenonAuthorization?.promise === promise) {
+				this.backgroundPrivateXenonAuthorization = undefined;
 			}
 		});
 	}
 
-	private async currentPrivatePrimeAuthorizationFingerprint(): Promise<string | undefined> {
-		const apiKey = await this.authStorage.getApiKey(PRIME_INFERENCE_PROVIDER_ID);
-		const teamId = this.authStorage.getProviderHeaders(PRIME_INFERENCE_PROVIDER_ID)?.["X-Prime-Team-ID"];
-		return apiKey && teamId ? privatePrimeAuthorizationFingerprint(apiKey, teamId) : undefined;
+	private async currentPrivateXenonAuthorizationFingerprint(): Promise<string | undefined> {
+		const apiKey = await this.authStorage.getApiKey(XENON_INFERENCE_PROVIDER_ID);
+		const teamId = this.authStorage.getProviderHeaders(XENON_INFERENCE_PROVIDER_ID)?.["X-Xenon-Team-ID"];
+		return apiKey && teamId ? privateXenonAuthorizationFingerprint(apiKey, teamId) : undefined;
 	}
 
-	private privatePrimeAuthorizationCachePath(): string | undefined {
+	private privateXenonAuthorizationCachePath(): string | undefined {
 		if (!this.modelsJsonPath) {
 			return undefined;
 		}
-		return join(dirname(this.modelsJsonPath), PRIVATE_PRIME_AUTHORIZATION_CACHE_FILE);
+		return join(dirname(this.modelsJsonPath), PRIVATE_XENON_AUTHORIZATION_CACHE_FILE);
 	}
 
-	private readPrivatePrimeAuthorizationCache(): PrivatePrimeAuthorizationCache | undefined {
-		const cachePath = this.privatePrimeAuthorizationCachePath();
+	private readPrivateXenonAuthorizationCache(): PrivateXenonAuthorizationCache | undefined {
+		const cachePath = this.privateXenonAuthorizationCachePath();
 		if (!cachePath) {
 			return undefined;
 		}
 		try {
 			const parsed = JSON.parse(readFileSync(cachePath, "utf8")) as Partial<
-				Omit<PrivatePrimeAuthorizationCache, "modelIds"> & { modelIds: string[] }
+				Omit<PrivateXenonAuthorizationCache, "modelIds"> & { modelIds: string[] }
 			>;
 			if (
 				typeof parsed.fingerprint !== "string" ||
@@ -920,8 +920,8 @@ export class ModelRegistry {
 		}
 	}
 
-	private writePrivatePrimeAuthorizationCache(cache: PrivatePrimeAuthorizationCache): void {
-		const cachePath = this.privatePrimeAuthorizationCachePath();
+	private writePrivateXenonAuthorizationCache(cache: PrivateXenonAuthorizationCache): void {
+		const cachePath = this.privateXenonAuthorizationCachePath();
 		if (!cachePath) {
 			return;
 		}
@@ -937,12 +937,12 @@ export class ModelRegistry {
 	async refreshModelCatalog(): Promise<ModelCatalogSnapshot> {
 		const availableModels = await this.refreshAvailableModels();
 		const availablePrivateModels = new Set(
-			availableModels.filter(isPrivatePrimeInferenceModel).map((model) => `${model.provider}/${model.id}`),
+			availableModels.filter(isPrivateXenonInferenceModel).map((model) => `${model.provider}/${model.id}`),
 		);
 		return {
 			models: this.models.filter(
 				(model) =>
-					!isPrivatePrimeInferenceModel(model) || availablePrivateModels.has(`${model.provider}/${model.id}`),
+					!isPrivateXenonInferenceModel(model) || availablePrivateModels.has(`${model.provider}/${model.id}`),
 			),
 			configuredProviders: [...new Set(availableModels.map((model) => model.provider))],
 		};
@@ -952,7 +952,7 @@ export class ModelRegistry {
 		if (!this.hasConfiguredAuth(model)) {
 			return false;
 		}
-		if (!isPrivatePrimeInferenceModel(model)) {
+		if (!isPrivateXenonInferenceModel(model)) {
 			return true;
 		}
 
@@ -961,7 +961,7 @@ export class ModelRegistry {
 	}
 
 	async getExecutableModels(): Promise<Model<Api>[]> {
-		await this.refreshPrivatePrimeInferenceAuthorization();
+		await this.refreshPrivateXenonInferenceAuthorization();
 		const availableModels = this.getAvailable();
 		const codexModels = availableModels.filter((model) => model.provider === "openai-codex");
 		if (codexModels.length === 0) {

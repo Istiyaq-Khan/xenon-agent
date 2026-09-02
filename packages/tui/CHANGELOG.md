@@ -32,18 +32,18 @@
 
 ## [0.3.2] - 2026-07-20
 
-- Removed the fullscreen image fallback instruction and kept fullscreen overlays from emitting terminal graphics ([#437](https://github.com/PrimeIntellect-ai/prime-agent/pull/437) by [@snimu](https://github.com/snimu)).
-- Changed the fullscreen follow shortcut from `Alt+Down` to `Ctrl+Shift+Down` for more reliable terminal input ([ENG-4684](https://linear.app/primeintellect/issue/ENG-4684/altdown-doesnt-work)).
+- Removed the fullscreen image fallback instruction and kept fullscreen overlays from emitting terminal graphics ([#437](https://github.com/Istiyaq-Khan/xenon-agent/pull/437) by [@snimu](https://github.com/snimu)).
+- Changed the fullscreen follow shortcut from `Alt+Down` to `Ctrl+Shift+Down` for more reliable terminal input ([ENG-4684](https://linear.app/xenonintellect/issue/ENG-4684/altdown-doesnt-work)).
 - Fixed terminal width, slicing, and wrapping helpers misreading standard CSI and DCS escape sequences.
 - Fixed autocomplete popups overlapping the prompt's top edge.
 
 ## [0.3.1] - 2026-07-15
 
-- Fixed fullscreen Markdown table selections copying borders instead of tab-separated cell content ([ENG-4629](https://linear.app/primeintellect/issue/ENG-4629/respect-table-boundaries-when-selecting)).
-- Fixed fullscreen drag selection so holding at a transcript edge scrolls through offscreen text ([ENG-4644](https://linear.app/primeintellect/issue/ENG-4644/copy-issues)).
-- Fixed slash-command and skill autocomplete not appearing for references typed in the middle of prompts ([ENG-4628](https://linear.app/primeintellect/issue/ENG-4628/support-skill-and-command-autocomplete-mid-prompt)).
+- Fixed fullscreen Markdown table selections copying borders instead of tab-separated cell content ([ENG-4629](https://linear.app/xenonintellect/issue/ENG-4629/respect-table-boundaries-when-selecting)).
+- Fixed fullscreen drag selection so holding at a transcript edge scrolls through offscreen text ([ENG-4644](https://linear.app/xenonintellect/issue/ENG-4644/copy-issues)).
+- Fixed slash-command and skill autocomplete not appearing for references typed in the middle of prompts ([ENG-4628](https://linear.app/xenonintellect/issue/ENG-4628/support-skill-and-command-autocomplete-mid-prompt)).
 - Fixed focused full-pane overlays becoming slow to navigate on wider terminals.
-- Fixed plain-text truncation emitting ANSI resets, marked shortened descriptions with an ellipsis, and rendered autocomplete in content-sized popup surfaces that close when editing leaves the completion context ([ENG-4542](https://linear.app/primeintellect/issue/ENG-4542/command-descriptions-are-cut-off-on-narrow-screens)).
+- Fixed plain-text truncation emitting ANSI resets, marked shortened descriptions with an ellipsis, and rendered autocomplete in content-sized popup surfaces that close when editing leaves the completion context ([ENG-4542](https://linear.app/xenonintellect/issue/ENG-4542/command-descriptions-are-cut-off-on-narrow-screens)).
 
 ## [0.3.0] - 2026-07-13
 
@@ -51,13 +51,13 @@
 
 ## [0.2.9] - 2026-07-13
 
-- Fixed fullscreen dock selection so prompt text can be copied ([#342](https://github.com/PrimeIntellect-ai/prime-agent/pull/342)).
+- Fixed fullscreen dock selection so prompt text can be copied ([#342](https://github.com/Istiyaq-Khan/xenon-agent/pull/342)).
 
 ## [0.2.8] - 2026-07-09
 
 ## [0.2.7] - 2026-07-08
 
-- Fixed full TUI redraws to preserve terminal scrollback on resize and shrink redraws ([#331](https://github.com/PrimeIntellect-ai/prime-agent/pull/331) by [@sethkarten](https://github.com/sethkarten)).
+- Fixed full TUI redraws to preserve terminal scrollback on resize and shrink redraws ([#331](https://github.com/Istiyaq-Khan/xenon-agent/pull/331) by [@sethkarten](https://github.com/sethkarten)).
 - Fixed fullscreen overlays that request native mouse behavior suspending mouse tracking while visible.
 - Added fullscreen handoff support so callers can switch alternate-screen views without replaying content into primary scrollback.
 
@@ -67,7 +67,7 @@
 
 ## [0.2.5] - 2026-07-06
 
-- Added fullscreen viewport rendering with alternate-screen scrolling, follow controls, mouse selection, and clipboard copy hooks ([#316](https://github.com/PrimeIntellect-ai/prime-agent/pull/316)).
+- Added fullscreen viewport rendering with alternate-screen scrolling, follow controls, mouse selection, and clipboard copy hooks ([#316](https://github.com/Istiyaq-Khan/xenon-agent/pull/316)).
 
 ## [0.2.4] - 2026-07-01
 
@@ -75,8 +75,8 @@
 
 ## [0.2.2] - 2026-06-25
 
-- Added `fuzzyFilterScored`, returning scored matches so callers can break ties by recency; `fuzzyFilter` delegates to it unchanged ([#251](https://github.com/PrimeIntellect-ai/prime-agent/issues/251)).
-- Changed the editor to expose `rlmChildLabel` (whitespace-normalized full prompt) and centralized the "still working" pulse glyph in `working-icon.ts` for shared use across panels and lists ([#247](https://github.com/PrimeIntellect-ai/prime-agent/issues/247)).
+- Added `fuzzyFilterScored`, returning scored matches so callers can break ties by recency; `fuzzyFilter` delegates to it unchanged ([#251](https://github.com/Istiyaq-Khan/xenon-agent/issues/251)).
+- Changed the editor to expose `rlmChildLabel` (whitespace-normalized full prompt) and centralized the "still working" pulse glyph in `working-icon.ts` for shared use across panels and lists ([#247](https://github.com/Istiyaq-Khan/xenon-agent/issues/247)).
 
 ## [0.2.1] - 2026-06-23
 
@@ -162,7 +162,7 @@
 
 ### Added
 
-- Added marquee TUI components and a Prime-branded theme as part of the initial Prime Agent fork from pi-mono.
+- Added marquee TUI components and a Xenon-branded theme as part of the initial Xenon Agent fork from pi-mono.
 
 ## [0.74.0] - 2026-05-07
 

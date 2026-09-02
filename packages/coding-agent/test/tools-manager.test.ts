@@ -3,14 +3,14 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const toolState = vi.hoisted(() => ({
-	toolsDir: `/tmp/prime-agent-tools-manager-${process.pid}`,
+	toolsDir: `/tmp/xenon-agent-tools-manager-${process.pid}`,
 	platform: "linux",
 	architecture: "x64",
 	extractZip: async (_source: string, _options: { dir: string }): Promise<void> => {},
 }));
 
 vi.mock("../src/config.js", () => ({
-	APP_NAME: "prime-agent",
+	APP_NAME: "xenon-agent",
 	getBinDir: () => toolState.toolsDir,
 }));
 
@@ -46,7 +46,7 @@ function unavailable(
 	return { status: "unavailable", reason, platform, architecture: "x64" };
 }
 
-describe("tools manager", () => {
+describe.skipIf(process.platform === "win32")("tools manager", () => {
 	beforeEach(() => {
 		rmSync(toolState.toolsDir, { recursive: true, force: true });
 		mkdirSync(pathDir, { recursive: true });
@@ -171,6 +171,6 @@ describe("tools manager", () => {
 		expect(linux).toContain("sudo dnf install ripgrep");
 		expect(windows).toContain("winget install BurntSushi.ripgrep.MSVC");
 		expect(termux).toContain("pkg install ripgrep");
-		expect(mac).toContain("Prime Agent and subagents remain available");
+		expect(mac).toContain("Xenon Agent and subagents remain available");
 	});
 });

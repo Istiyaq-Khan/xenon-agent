@@ -10,7 +10,7 @@ body:
     id: package
     attributes:
       label: Affected area
-      description: Which part of Prime Agent is affected?
+      description: Which part of Xenon Agent is affected?
       multiple: true
       options:
         - Agent core
@@ -35,7 +35,7 @@ body:
       label: Steps to reproduce
       description: Provide the smallest reliable sequence that reproduces the problem.
       placeholder: |
-        1. Run `prime-agent ...`
+        1. Run `xenon-agent ...`
         2. ...
         3. Observe ...
     validations:
@@ -50,8 +50,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: Prime Agent version
-      description: Include the output of `prime-agent --version`, or the commit if running from source.
+      label: Xenon Agent version
+      description: Include the output of `xenon-agent --version`, or the commit if running from source.
       placeholder: "0.0.0 or commit SHA"
     validations:
       required: true

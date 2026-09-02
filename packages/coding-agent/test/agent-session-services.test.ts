@@ -30,7 +30,7 @@ describe("createAgentSessionFromServices", () => {
 
 	it("shows the telemetry disclosure independently of the Herdr reporter", async () => {
 		vi.stubEnv("DO_NOT_TRACK", "0");
-		vi.stubEnv("PRIME_AGENT_TELEMETRY", "1");
+		vi.stubEnv("XENON_AGENT_TELEMETRY", "1");
 		const tempDir = join(tmpdir(), `pi-session-telemetry-notice-${Date.now()}`);
 		mkdirSync(tempDir, { recursive: true });
 		cleanupPaths.push(tempDir);
@@ -52,7 +52,7 @@ describe("createAgentSessionFromServices", () => {
 
 	it("honors an explicit daemon-carried telemetry opt-out", async () => {
 		vi.stubEnv("DO_NOT_TRACK", "0");
-		vi.stubEnv("PRIME_AGENT_TELEMETRY", "1");
+		vi.stubEnv("XENON_AGENT_TELEMETRY", "1");
 		const tempDir = join(tmpdir(), `pi-session-daemon-telemetry-opt-out-${Date.now()}`);
 		mkdirSync(tempDir, { recursive: true });
 		cleanupPaths.push(tempDir);
@@ -84,7 +84,7 @@ describe("createAgentSessionFromServices", () => {
 
 	it("does not install top-level telemetry for a resumed child session", async () => {
 		vi.stubEnv("DO_NOT_TRACK", "0");
-		vi.stubEnv("PRIME_AGENT_TELEMETRY", "1");
+		vi.stubEnv("XENON_AGENT_TELEMETRY", "1");
 		const tempDir = join(tmpdir(), `pi-session-child-telemetry-${Date.now()}`);
 		mkdirSync(tempDir, { recursive: true });
 		cleanupPaths.push(tempDir);
@@ -110,7 +110,7 @@ describe("createAgentSessionFromServices", () => {
 		const tempDir = join(tmpdir(), `pi-session-mcp-prompt-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 		const projectDir = join(tempDir, "project");
 		const agentDir = join(tempDir, "agent");
-		mkdirSync(join(projectDir, ".prime", "agent"), { recursive: true });
+		mkdirSync(join(projectDir, ".xenon", "agent"), { recursive: true });
 		mkdirSync(agentDir, { recursive: true });
 		cleanupPaths.push(tempDir);
 
@@ -132,7 +132,7 @@ describe("createAgentSessionFromServices", () => {
 			}),
 		);
 		writeFileSync(
-			join(projectDir, ".prime", "agent", "settings.json"),
+			join(projectDir, ".xenon", "agent", "settings.json"),
 			JSON.stringify({ mcpServers: { projectOnly: { type: "stdio", command: "project-secret" } } }),
 		);
 
@@ -199,7 +199,7 @@ describe("createAgentSessionFromServices", () => {
 			Reflect.set(session, "_ipythonKernelProvisioner", originalProvisioner);
 			expect(rebuildRuntime).not.toHaveBeenCalled();
 			expect(execute).toHaveBeenCalledOnce();
-			expect(execute.mock.calls[0]?.[0]).toContain("await _prime_mcp.reload(_prime_mcp_name)");
+			expect(execute.mock.calls[0]?.[0]).toContain("await _xenon_mcp.reload(_xenon_mcp_name)");
 			expect(execute.mock.calls[0]?.[0]).toContain('["task"]');
 			expect(session.systemPrompt).toContain("Enabled generic MCP servers: `filesystem`, `zebra`.");
 

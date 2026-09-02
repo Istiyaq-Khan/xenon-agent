@@ -11,7 +11,7 @@
  * `{ skip: true }` suppresses the refinement round entirely.
  *
  * Usage:
- *   prime-agent -e examples/extensions/custom-refinement.ts
+ *   xenon-agent -e examples/extensions/custom-refinement.ts
  */
 
 import { complete } from "@earendil-works/pi-ai";

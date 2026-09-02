@@ -28,7 +28,7 @@ const oauthTokens = await Promise.all([
 	resolveApiKey("openai-codex"),
 ]);
 const [anthropicOAuthToken, githubCopilotToken, openaiCodexToken] = oauthTokens;
-const primeInferenceApiKey = getEnvApiKey("prime-inference");
+const xenonInferenceApiKey = getEnvApiKey("xenon-inference");
 
 const calculatorSchema = Type.Object({
 	a: Type.Number({ description: "First number" }),
@@ -432,8 +432,8 @@ describe("Generate E2E Tests", () => {
 		});
 	});
 
-	describe.skipIf(!primeInferenceApiKey)("Prime Inference Provider (openai/gpt-5.5)", () => {
-		const llm = getModel("prime-inference", "openai/gpt-5.5");
+	describe.skipIf(!xenonInferenceApiKey)("Xenon Inference Provider (openai/gpt-5.5)", () => {
+		const llm = getModel("xenon-inference", "openai/gpt-5.5");
 
 		it("should complete basic text generation", { retry: 3 }, async () => {
 			await basicTextGeneration(llm);

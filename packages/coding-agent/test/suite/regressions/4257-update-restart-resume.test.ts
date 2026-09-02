@@ -135,7 +135,7 @@ async function waitForCondition(predicate: () => boolean): Promise<void> {
 function createCustomMessage(content: string): CustomMessage {
 	return {
 		role: "custom",
-		customType: "prime-agent.test",
+		customType: "xenon-agent.test",
 		content,
 		display: false,
 		timestamp: Date.now(),
@@ -632,7 +632,7 @@ describe("issue #4257 update restart resume", () => {
 		expect(
 			harness.sessionManager
 				.getEntries()
-				.some((entry) => entry.type === "custom_message" && entry.customType === "prime-agent.update_restart"),
+				.some((entry) => entry.type === "custom_message" && entry.customType === "xenon-agent.update_restart"),
 		).toBe(true);
 		abortSpy.mockRestore();
 		agentAbortSpy.mockRestore();
@@ -775,7 +775,7 @@ describe("issue #4257 update restart resume", () => {
 				parentHarness,
 				"parent-active",
 				{ kind: "top-level", createdAt: Date.now() },
-				{ clientEnv: { PRIME_SESSION: "pane-1" } },
+				{ clientEnv: { XENON_SESSION: "pane-1" } },
 			),
 		);
 		internals.sessions.set(
@@ -796,7 +796,7 @@ describe("issue #4257 update restart resume", () => {
 		expect(manifest.sessions).toHaveLength(2);
 		expect(manifest.sessions[0]).toMatchObject({
 			activeSessionId: "parent-active",
-			clientEnv: { PRIME_SESSION: "pane-1" },
+			clientEnv: { XENON_SESSION: "pane-1" },
 			runtimeMetadata: { kind: "top-level" },
 			queue: { actions: { formatVersion: 1 }, nextTurn: [] },
 			shouldResume: true,

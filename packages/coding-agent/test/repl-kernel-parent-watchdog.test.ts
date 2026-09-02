@@ -40,7 +40,7 @@ function readJournalRecords(path: string): JournalRecord[] {
 
 describe("repl kernel parent watchdog", () => {
 	beforeEach(() => {
-		tempDir = mkdtempSync(join(tmpdir(), "prime-agent-repl-watchdog-"));
+		tempDir = mkdtempSync(join(tmpdir(), "xenon-agent-repl-watchdog-"));
 	});
 
 	afterEach(() => {
@@ -53,7 +53,7 @@ describe("repl kernel parent watchdog", () => {
 		}
 	});
 
-	it("spawn sets PRIME_AGENT_KERNEL_OWNER_PID and journals the kernel pid", async () => {
+	it("spawn sets XENON_AGENT_KERNEL_OWNER_PID and journals the kernel pid", async () => {
 		const envDump = join(tempDir, "kernel-env");
 		const python = writeFakePython(["#!/bin/sh", `env > "${envDump}"`, "exit 42", ""]);
 		const journalPath = join(tempDir, "orphans.jsonl");
@@ -68,7 +68,9 @@ describe("repl kernel parent watchdog", () => {
 			await manager.shutdown({ snapshot: true, drainHostRequests: true });
 		}
 
-		expect(readFileSync(envDump, "utf8")).toMatch(new RegExp(`^PRIME_AGENT_KERNEL_OWNER_PID=${process.pid}$`, "m"));
+		expect(readFileSync(envDump, "utf8")).toMatch(
+			new RegExp(`^(XENON_AGENT_KERNEL_OWNER_PID|XENON_AGENT_KERNEL_OWNER_PID)=${process.pid}$`, "m"),
+		);
 
 		// Self-exited child: the kill signals nothing, so the record must stay active.
 		await vi.waitFor(() => {
@@ -274,9 +276,12 @@ describe("repl kernel parent watchdog", () => {
 
 function resolveReplPython(): string | null {
 	const candidates = [
-		process.env.PRIME_AGENT_KERNEL_PYTHON,
-		resolve(__dirname, "..", "..", "..", "prime-agent-runtime", ".venv", "bin", "python"),
-		join(homedir(), ".prime", "agent", "kernel-venv", "bin", "python"),
+		process.env.XENON_AGENT_KERNEL_PYTHON,
+		process.env.XENON_AGENT_KERNEL_PYTHON,
+		resolve(__dirname, "..", "..", "..", "xenon-agent-runtime", ".venv", "bin", "python"),
+		resolve(__dirname, "..", "..", "..", "xenon-agent-runtime", ".venv", "bin", "python"),
+		join(homedir(), ".xenon-agent", "kernel-venv", "bin", "python"),
+		join(homedir(), ".xenon", "agent", "kernel-venv", "bin", "python"),
 	].filter((p): p is string => Boolean(p));
 	for (const python of candidates) {
 		if (!existsSync(python)) continue;
@@ -291,7 +296,7 @@ const describeIf = replPython && process.platform !== "win32" ? describe : descr
 
 describeIf("repl runtime outlives-owner watchdog (real runtime)", { tags: ["kernel-heavy"] }, () => {
 	it("runtime exits after its owner is SIGKILLed (stdin EOF watchdog)", async () => {
-		const dir = mkdtempSync(join(tmpdir(), "prime-agent-repl-watchdog-int-"));
+		const dir = mkdtempSync(join(tmpdir(), "xenon-agent-repl-watchdog-int-"));
 		const pidFile = join(dir, "runtime.pid");
 		// The owner must be a separate killable process; it replicates the
 		// manager's exact spawn line: piped stdin, so owner death delivers EOF.
@@ -299,7 +304,7 @@ describeIf("repl runtime outlives-owner watchdog (real runtime)", { tags: ["kern
 			`const { spawn } = require("node:child_process");`,
 			`const { writeFileSync } = require("node:fs");`,
 			`const k = spawn(${JSON.stringify(replPython)}, ["-m", "rlm.repl"], {`,
-			`  env: { ...process.env, PRIME_AGENT_KERNEL_OWNER_PID: String(process.pid) },`,
+			`  env: { ...process.env, XENON_AGENT_KERNEL_OWNER_PID: String(process.pid), XENON_AGENT_KERNEL_OWNER_PID: String(process.pid) },`,
 			`  stdio: ["pipe", "ignore", "ignore"],`,
 			`});`,
 			`writeFileSync(${JSON.stringify(pidFile)}, String(k.pid));`,
@@ -344,7 +349,7 @@ describeIf("repl runtime outlives-owner watchdog (real runtime)", { tags: ["kern
 	}, 30_000);
 
 	it("runtime exits after owner death even while a non-yielding cell holds the loop", async () => {
-		const dir = mkdtempSync(join(tmpdir(), "prime-agent-repl-watchdog-busy-"));
+		const dir = mkdtempSync(join(tmpdir(), "xenon-agent-repl-watchdog-busy-"));
 		const pidFile = join(dir, "runtime.pid");
 		const busyFile = join(dir, "busy.marker");
 		// The cell marks the file, then spins synchronously: the asyncio loop is
@@ -359,7 +364,7 @@ describeIf("repl runtime outlives-owner watchdog (real runtime)", { tags: ["kern
 			`const { spawn } = require("node:child_process");`,
 			`const { writeFileSync } = require("node:fs");`,
 			`const k = spawn(${JSON.stringify(replPython)}, ["-m", "rlm.repl"], {`,
-			`  env: { ...process.env, PRIME_AGENT_KERNEL_OWNER_PID: String(process.pid) },`,
+			`  env: { ...process.env, XENON_AGENT_KERNEL_OWNER_PID: String(process.pid), XENON_AGENT_KERNEL_OWNER_PID: String(process.pid) },`,
 			`  stdio: ["pipe", "ignore", "ignore"],`,
 			`});`,
 			`writeFileSync(${JSON.stringify(pidFile)}, String(k.pid));`,

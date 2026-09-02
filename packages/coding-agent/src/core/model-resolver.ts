@@ -10,11 +10,11 @@ import { isValidThinkingLevel } from "../cli/args.js";
 import { APP_NAME } from "../config.js";
 import { DEFAULT_THINKING_LEVEL } from "./defaults.js";
 import type { ModelRegistry } from "./model-registry.js";
-import { isPrivatePrimeInferenceModel } from "./prime-inference-models.js";
+import { isPrivateXenonInferenceModel } from "./xenon-inference-models.js";
 
 const log = getLogger("coding-agent.model-resolver");
 
-export const PRIME_INFERENCE_DEFAULT_MODEL_ID = "z-ai/glm-5.2";
+export const XENON_INFERENCE_DEFAULT_MODEL_ID = "z-ai/glm-5.2";
 
 /** Default model IDs for each known provider */
 export const defaultModelPerProvider: Record<KnownProvider, string> = {
@@ -23,7 +23,7 @@ export const defaultModelPerProvider: Record<KnownProvider, string> = {
 	openai: "gpt-5.4",
 	"azure-openai-responses": "gpt-5.4",
 	"openai-codex": "gpt-5.5",
-	"prime-inference": PRIME_INFERENCE_DEFAULT_MODEL_ID,
+	"xenon-inference": XENON_INFERENCE_DEFAULT_MODEL_ID,
 	deepseek: "deepseek-v4-pro",
 	google: "gemini-3.1-pro-preview",
 	"google-vertex": "gemini-3.1-pro-preview",
@@ -171,11 +171,11 @@ function buildFallbackModel(provider: string, modelId: string, availableModels: 
 }
 
 function findPreferredDefaultModel(availableModels: Model<Api>[]): Model<Api> | undefined {
-	const primeInferenceDefault = availableModels.find(
-		(model) => model.provider === "prime-inference" && model.id === PRIME_INFERENCE_DEFAULT_MODEL_ID,
+	const xenonInferenceDefault = availableModels.find(
+		(model) => model.provider === "xenon-inference" && model.id === XENON_INFERENCE_DEFAULT_MODEL_ID,
 	);
-	if (primeInferenceDefault) {
-		return primeInferenceDefault;
+	if (xenonInferenceDefault) {
+		return xenonInferenceDefault;
 	}
 
 	for (const provider of Object.keys(defaultModelPerProvider) as KnownProvider[]) {
@@ -524,12 +524,12 @@ export async function findInitialModel(options: {
 		}
 		const resolvedModel = resolved.model;
 		if (resolvedModel) {
-			if (isPrivatePrimeInferenceModel(resolvedModel)) {
+			if (isPrivateXenonInferenceModel(resolvedModel)) {
 				const availableModel = (await getAvailableModels()).find((candidate) =>
 					modelsAreEqual(candidate, resolvedModel),
 				);
 				if (!availableModel) {
-					const error = `Model "${resolvedModel.provider}/${resolvedModel.id}" is not available for the current Prime team.`;
+					const error = `Model "${resolvedModel.provider}/${resolvedModel.id}" is not available for the current Xenon team.`;
 					log.error(error, { cliProvider, cliModel });
 					console.error(chalk.red(error));
 					process.exit(1);
@@ -549,12 +549,12 @@ export async function findInitialModel(options: {
 	const availableModels = await getAvailableModels();
 	if (defaultProvider && defaultModelId) {
 		// Rebuild from the provider template when the saved id is missing from this
-		// build's snapshot (e.g. prime-inference catalog churn), so it survives updates.
+		// build's snapshot (e.g. xenon-inference catalog churn), so it survives updates.
 		const found =
 			availableModels.find(
 				(candidate) => candidate.provider === defaultProvider && candidate.id === defaultModelId,
 			) ??
-			(!isPrivatePrimeInferenceModel({ provider: defaultProvider, id: defaultModelId })
+			(!isPrivateXenonInferenceModel({ provider: defaultProvider, id: defaultModelId })
 				? buildFallbackModel(defaultProvider, defaultModelId, availableModels)
 				: undefined);
 		if (found) {
@@ -611,7 +611,7 @@ export async function restoreModelFromSession(
 		? availableModels.find((candidate) => modelsAreEqual(candidate, currentModel))
 		: undefined;
 	const fallbackCurrentModel =
-		currentModel && (!isPrivatePrimeInferenceModel(currentModel) || availableCurrentModel)
+		currentModel && (!isPrivateXenonInferenceModel(currentModel) || availableCurrentModel)
 			? (availableCurrentModel ?? currentModel)
 			: undefined;
 	if (fallbackCurrentModel) {

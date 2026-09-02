@@ -3,22 +3,22 @@ import { getProviders, type OAuthProviderId, type OAuthSelectPrompt } from "@ear
 import type { OverlayHandle, TUI } from "@earendil-works/pi-tui";
 import { getAuthPath, getDocsPath } from "../../config.js";
 import type { ModelRegistry } from "../../core/model-registry.js";
-import {
-	checkPrimeAgentTracesAccess,
-	checkPrimeInferenceAccess,
-	fetchPrimeTeams,
-	loadPrimeCliConfig,
-	loginPrimeAgentTraces,
-	loginPrimeInference,
-	PRIME_AGENT_TRACES_PROVIDER_ID,
-	PRIME_AGENT_TRACES_PROVIDER_NAME,
-	PRIME_INFERENCE_PROVIDER_ID,
-	PRIME_INFERENCE_PROVIDER_NAME,
-	type PrimeTeam,
-	resolvePrimeAgentTracesBaseUrl,
-} from "../../core/prime-inference-auth.js";
 import { BUILT_IN_PROVIDER_DISPLAY_NAMES } from "../../core/provider-display-names.js";
 import { SERPER_CREDENTIAL_ID, SERPER_CREDENTIAL_NAME } from "../../core/websearch-credential.js";
+import {
+	checkXenonAgentTracesAccess,
+	checkXenonInferenceAccess,
+	fetchXenonTeams,
+	loadXenonCliConfig,
+	loginXenonAgentTraces,
+	loginXenonInference,
+	resolveXenonAgentTracesBaseUrl,
+	XENON_AGENT_TRACES_PROVIDER_ID,
+	XENON_AGENT_TRACES_PROVIDER_NAME,
+	XENON_INFERENCE_PROVIDER_ID,
+	XENON_INFERENCE_PROVIDER_NAME,
+	type XenonTeam,
+} from "../../core/xenon-inference-auth.js";
 import { showFullPaneOverlay } from "./components/centered-overlay.js";
 import { ExtensionSelectorComponent } from "./components/extension-selector.js";
 import { LoginDialogComponent } from "./components/login-dialog.js";
@@ -28,7 +28,7 @@ import {
 	compareAuthSelectorProviders,
 	OAuthSelectorComponent,
 } from "./components/oauth-selector.js";
-import { PrimeTeamSelectorComponent } from "./components/prime-team-selector.js";
+import { XenonTeamSelectorComponent } from "./components/xenon-team-selector.js";
 import { theme } from "./theme/theme.js";
 
 export type AuthenticationResult =
@@ -175,8 +175,8 @@ export class ProviderAuthFlows {
 		if (providerOption.authType === "oauth") {
 			return this.showLoginDialog(providerOption.id, providerOption.name, kind);
 		}
-		if (providerOption.id === PRIME_INFERENCE_PROVIDER_ID) {
-			return this.runPrimeInferenceLogin();
+		if (providerOption.id === XENON_INFERENCE_PROVIDER_ID) {
+			return this.runXenonInferenceLogin();
 		}
 		if (providerOption.id === BEDROCK_PROVIDER_ID) {
 			return this.showBedrockSetupDialog(providerOption.id, providerOption.name);
@@ -293,12 +293,12 @@ export class ProviderAuthFlows {
 			});
 		}
 
-		if (!options.some((option) => option.id === PRIME_INFERENCE_PROVIDER_ID)) {
-			const primeInferenceStatus = authStorage.getAuthStatus(PRIME_INFERENCE_PROVIDER_ID);
-			if (primeInferenceStatus.source === "prime_cli") {
+		if (!options.some((option) => option.id === XENON_INFERENCE_PROVIDER_ID)) {
+			const xenonInferenceStatus = authStorage.getAuthStatus(XENON_INFERENCE_PROVIDER_ID);
+			if (xenonInferenceStatus.source === "xenon_cli") {
 				options.push({
-					id: PRIME_INFERENCE_PROVIDER_ID,
-					name: PRIME_INFERENCE_PROVIDER_NAME,
+					id: XENON_INFERENCE_PROVIDER_ID,
+					name: XENON_INFERENCE_PROVIDER_NAME,
 					authType: "api_key",
 				});
 			}
@@ -384,17 +384,17 @@ export class ProviderAuthFlows {
 		}
 	}
 
-	private showPrimeTeamSelector(
-		teams: PrimeTeam[],
+	private showXenonTeamSelector(
+		teams: XenonTeam[],
 		currentTeamId: string | undefined,
-	): Promise<PrimeTeam | null | undefined> {
+	): Promise<XenonTeam | null | undefined> {
 		return new Promise((resolve) => {
 			let handle: OverlayHandle | undefined;
 			const close = () => {
 				handle?.hide();
 				this.host.ui.requestRender();
 			};
-			const selector = new PrimeTeamSelectorComponent(
+			const selector = new XenonTeamSelectorComponent(
 				teams,
 				currentTeamId,
 				(team) => {
@@ -411,26 +411,26 @@ export class ProviderAuthFlows {
 		});
 	}
 
-	private getPrimeInferenceDefaultTeamStatus(): string {
-		const configPath = this.host.modelRegistry.authStorage.getPrimeCliConfigPath();
+	private getXenonInferenceDefaultTeamStatus(): string {
+		const configPath = this.host.modelRegistry.authStorage.getXenonCliConfigPath();
 		if (configPath) {
-			let config: ReturnType<typeof loadPrimeCliConfig>;
+			let config: ReturnType<typeof loadXenonCliConfig>;
 			try {
-				config = loadPrimeCliConfig(configPath);
+				config = loadXenonCliConfig(configPath);
 			} catch {
 				return "Using personal account.";
 			}
 			if (config.teamIdFromEnv) {
-				return "Using team from PRIME_TEAM_ID.";
+				return "Using team from XENON_TEAM_ID.";
 			}
 			if (config.teamName) {
 				return `Using team "${config.teamName}".`;
 			}
 			if (config.teamId) {
-				return "Using Prime CLI team.";
+				return "Using Xenon CLI team.";
 			}
 		}
-		const storedTeam = this.host.modelRegistry.authStorage.getPrimeInferenceTeamSelection();
+		const storedTeam = this.host.modelRegistry.authStorage.getXenonInferenceTeamSelection();
 		if (storedTeam) {
 			return `Using team "${storedTeam.name}".`;
 		}
@@ -440,80 +440,80 @@ export class ProviderAuthFlows {
 		return "Using personal account.";
 	}
 
-	private async selectPrimeInferenceTeam(apiKey: string, dialog: LoginDialogComponent): Promise<string | undefined> {
+	private async selectXenonInferenceTeam(apiKey: string, dialog: LoginDialogComponent): Promise<string | undefined> {
 		try {
-			const config = loadPrimeCliConfig(this.host.modelRegistry.authStorage.getPrimeCliConfigPath());
+			const config = loadXenonCliConfig(this.host.modelRegistry.authStorage.getXenonCliConfigPath());
 			if (config.teamIdFromEnv) {
 				this.host.modelRegistry.authStorage.reload();
-				return "Using team from PRIME_TEAM_ID.";
+				return "Using team from XENON_TEAM_ID.";
 			}
 
-			dialog.showProgress("Loading Prime teams...");
-			const teams = await fetchPrimeTeams(apiKey, config.baseUrl, { signal: dialog.signal });
+			dialog.showProgress("Loading Xenon teams...");
+			const teams = await fetchXenonTeams(apiKey, config.baseUrl, { signal: dialog.signal });
 			if (dialog.signal.aborted) {
-				return this.getPrimeInferenceDefaultTeamStatus();
+				return this.getXenonInferenceDefaultTeamStatus();
 			}
 			if (teams.length === 0) {
-				this.host.modelRegistry.authStorage.setPrimeInferenceTeamSelection(null);
+				this.host.modelRegistry.authStorage.setXenonInferenceTeamSelection(null);
 				return "Using personal account.";
 			}
 
-			const storedTeam = this.host.modelRegistry.authStorage.getPrimeInferenceTeamSelection();
+			const storedTeam = this.host.modelRegistry.authStorage.getXenonInferenceTeamSelection();
 			const currentTeamId = storedTeam === null ? undefined : (storedTeam?.teamId ?? config.teamId);
-			const selectedTeam = await this.showPrimeTeamSelector(teams, currentTeamId);
+			const selectedTeam = await this.showXenonTeamSelector(teams, currentTeamId);
 			if (selectedTeam !== undefined) {
-				this.host.modelRegistry.authStorage.setPrimeInferenceTeamSelection(selectedTeam);
+				this.host.modelRegistry.authStorage.setXenonInferenceTeamSelection(selectedTeam);
 			}
 			return selectedTeam
 				? `Using team "${selectedTeam.name}".`
 				: selectedTeam === null
 					? "Using personal account."
-					: this.getPrimeInferenceDefaultTeamStatus();
+					: this.getXenonInferenceDefaultTeamStatus();
 		} catch {
 			this.host.modelRegistry.authStorage.reload();
-			return this.getPrimeInferenceDefaultTeamStatus();
+			return this.getXenonInferenceDefaultTeamStatus();
 		}
 	}
 
-	private async completePrimeInferenceLogin(
+	private async completeXenonInferenceLogin(
 		apiKey: string,
 		dialog: LoginDialogComponent,
 		closeDialog: () => void,
 	): Promise<AuthenticationResult> {
-		this.host.modelRegistry.authStorage.setPrimeInferenceApiKey(apiKey);
-		const teamStatus = await this.selectPrimeInferenceTeam(apiKey, dialog);
+		this.host.modelRegistry.authStorage.setXenonInferenceApiKey(apiKey);
+		const teamStatus = await this.selectXenonInferenceTeam(apiKey, dialog);
 
 		closeDialog();
 		return await this.completeProviderAuthentication(
-			PRIME_INFERENCE_PROVIDER_ID,
-			PRIME_INFERENCE_PROVIDER_NAME,
+			XENON_INFERENCE_PROVIDER_ID,
+			XENON_INFERENCE_PROVIDER_NAME,
 			"api_key",
 			teamStatus,
 			"provider",
-			this.host.modelRegistry.authStorage.getPrimeCliConfigPath() ?? getAuthPath(),
+			this.host.modelRegistry.authStorage.getXenonCliConfigPath() ?? getAuthPath(),
 		);
 	}
 
-	private async completePrimeAgentTracesLogin(apiKey: string, closeDialog: () => void): Promise<AuthenticationResult> {
-		this.host.modelRegistry.authStorage.set(PRIME_AGENT_TRACES_PROVIDER_ID, {
+	private async completeXenonAgentTracesLogin(apiKey: string, closeDialog: () => void): Promise<AuthenticationResult> {
+		this.host.modelRegistry.authStorage.set(XENON_AGENT_TRACES_PROVIDER_ID, {
 			type: "api_key",
 			key: apiKey,
 		});
 
 		closeDialog();
 		return await this.completeProviderAuthentication(
-			PRIME_AGENT_TRACES_PROVIDER_ID,
-			PRIME_AGENT_TRACES_PROVIDER_NAME,
+			XENON_AGENT_TRACES_PROVIDER_ID,
+			XENON_AGENT_TRACES_PROVIDER_NAME,
 			"api_key",
 		);
 	}
 
-	async runPrimeInferenceLogin(): Promise<AuthenticationResult> {
+	async runXenonInferenceLogin(): Promise<AuthenticationResult> {
 		const dialog = new LoginDialogComponent(
 			this.host.ui,
-			PRIME_INFERENCE_PROVIDER_ID,
+			XENON_INFERENCE_PROVIDER_ID,
 			(_success, _message) => {},
-			PRIME_INFERENCE_PROVIDER_NAME,
+			XENON_INFERENCE_PROVIDER_NAME,
 		);
 
 		const handle = showFullPaneOverlay(this.host.ui, dialog, {
@@ -551,7 +551,7 @@ export class ProviderAuthFlows {
 		};
 
 		try {
-			const browserLogin = loginPrimeInference(
+			const browserLogin = loginXenonInference(
 				{
 					onAuth: (info) => {
 						dialog.showAuth(info.url, info.instructions);
@@ -563,7 +563,7 @@ export class ProviderAuthFlows {
 					signal: browserAbort.signal,
 				},
 				{
-					configPath: this.host.modelRegistry.authStorage.getPrimeCliConfigPath(),
+					configPath: this.host.modelRegistry.authStorage.getXenonCliConfigPath(),
 				},
 			);
 			// When the browser challenge cannot start or breaks down, keep the dialog
@@ -575,7 +575,7 @@ export class ProviderAuthFlows {
 				const errorMsg = error instanceof Error ? error.message : String(error);
 				dialog.showProgress(`Browser sign-in unavailable (${errorMsg}).`);
 				if (!manualInputArmed) {
-					armManualInput("Paste a Prime API key below:");
+					armManualInput("Paste a Xenon API key below:");
 				}
 				return manualKeyEntry;
 			});
@@ -598,25 +598,25 @@ export class ProviderAuthFlows {
 
 			if (result.source === "manual") {
 				browserAbort.abort();
-				dialog.showProgress("Checking Prime Inference access...");
-				const config = loadPrimeCliConfig(this.host.modelRegistry.authStorage.getPrimeCliConfigPath());
-				const access = await checkPrimeInferenceAccess(result.apiKey, config.baseUrl, { signal: dialog.signal });
+				dialog.showProgress("Checking Xenon Inference access...");
+				const config = loadXenonCliConfig(this.host.modelRegistry.authStorage.getXenonCliConfigPath());
+				const access = await checkXenonInferenceAccess(result.apiKey, config.baseUrl, { signal: dialog.signal });
 				if (dialog.signal.aborted) {
 					closeDialog();
 					return { status: "cancelled" };
 				}
 				if (!access.ok) {
 					const status = access.status === undefined ? "" : `HTTP ${access.status}: `;
-					throw new Error(`Prime API key does not have Prime Inference access (${status}${access.message})`);
+					throw new Error(`Xenon API key does not have Xenon Inference access (${status}${access.message})`);
 				}
 			}
 
-			return await this.completePrimeInferenceLogin(result.apiKey, dialog, closeDialog);
+			return await this.completeXenonInferenceLogin(result.apiKey, dialog, closeDialog);
 		} catch (error: unknown) {
 			closeDialog();
 			const errorMsg = error instanceof Error ? error.message : String(error);
 			if (!dialog.signal.aborted && errorMsg !== "Login cancelled") {
-				this.host.showError(`Failed to login to ${PRIME_INFERENCE_PROVIDER_NAME}: ${errorMsg}`);
+				this.host.showError(`Failed to login to ${XENON_INFERENCE_PROVIDER_NAME}: ${errorMsg}`);
 				return { status: "failed" };
 			}
 			return { status: "cancelled" };
@@ -625,12 +625,12 @@ export class ProviderAuthFlows {
 		}
 	}
 
-	async runPrimeAgentTracesLogin(): Promise<AuthenticationResult> {
+	async runXenonAgentTracesLogin(): Promise<AuthenticationResult> {
 		const dialog = new LoginDialogComponent(
 			this.host.ui,
-			PRIME_AGENT_TRACES_PROVIDER_ID,
+			XENON_AGENT_TRACES_PROVIDER_ID,
 			(_success, _message) => {},
-			PRIME_AGENT_TRACES_PROVIDER_NAME,
+			XENON_AGENT_TRACES_PROVIDER_NAME,
 		);
 
 		const handle = showFullPaneOverlay(this.host.ui, dialog, {
@@ -666,10 +666,10 @@ export class ProviderAuthFlows {
 		};
 
 		try {
-			const browserLogin = loginPrimeAgentTraces({
+			const browserLogin = loginXenonAgentTraces({
 				onAuth: (info) => {
 					dialog.showAuth(info.url, info.instructions);
-					armManualInput("Complete the sign-in in your browser, or paste a Prime API key below:");
+					armManualInput("Complete the sign-in in your browser, or paste a Xenon API key below:");
 				},
 				onProgress: (message) => {
 					dialog.showProgress(message);
@@ -683,7 +683,7 @@ export class ProviderAuthFlows {
 				const errorMsg = error instanceof Error ? error.message : String(error);
 				dialog.showProgress(`Browser sign-in unavailable (${errorMsg}).`);
 				if (!manualInputArmed) {
-					armManualInput("Paste a Prime API key below:");
+					armManualInput("Paste a Xenon API key below:");
 				}
 				return manualKeyEntry;
 			});
@@ -701,8 +701,8 @@ export class ProviderAuthFlows {
 
 			if (result.source === "manual") {
 				browserAbort.abort();
-				dialog.showProgress("Checking Prime Agent trace access...");
-				const access = await checkPrimeAgentTracesAccess(result.apiKey, resolvePrimeAgentTracesBaseUrl(), {
+				dialog.showProgress("Checking Xenon Agent trace access...");
+				const access = await checkXenonAgentTracesAccess(result.apiKey, resolveXenonAgentTracesBaseUrl(), {
 					signal: dialog.signal,
 				});
 				if (dialog.signal.aborted) {
@@ -711,16 +711,16 @@ export class ProviderAuthFlows {
 				}
 				if (!access.ok) {
 					const status = access.status === undefined ? "" : `HTTP ${access.status}: `;
-					throw new Error(`Prime API key does not have Prime Agent trace access (${status}${access.message})`);
+					throw new Error(`Xenon API key does not have Xenon Agent trace access (${status}${access.message})`);
 				}
 			}
 
-			return await this.completePrimeAgentTracesLogin(result.apiKey, closeDialog);
+			return await this.completeXenonAgentTracesLogin(result.apiKey, closeDialog);
 		} catch (error: unknown) {
 			closeDialog();
 			const errorMsg = error instanceof Error ? error.message : String(error);
 			if (!dialog.signal.aborted && errorMsg !== "Login cancelled") {
-				this.host.showError(`Failed to login to ${PRIME_AGENT_TRACES_PROVIDER_NAME}: ${errorMsg}`);
+				this.host.showError(`Failed to login to ${XENON_AGENT_TRACES_PROVIDER_NAME}: ${errorMsg}`);
 				return { status: "failed" };
 			}
 			return { status: "cancelled" };

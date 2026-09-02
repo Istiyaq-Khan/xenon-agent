@@ -294,7 +294,7 @@ describe("ReplKernelManager graceful shutdown", () => {
 	});
 
 	it("keeps the kernel MCP close budget strictly inside the host shutdown deadline", () => {
-		const source = readFileSync(resolve(__dirname, "../../../prime-agent-runtime/src/rlm/mcp.py"), "utf8");
+		const source = readFileSync(resolve(__dirname, "../../../xenon-agent-runtime/src/rlm/mcp.py"), "utf8");
 		const match = source.match(/^_SHUTDOWN_TIMEOUT = ([\d.]+)$/m);
 		expect(match).not.toBeNull();
 		// +1s dispatch slack in mcp.py close(); the sum must undercut the host's 5s kill deadline.

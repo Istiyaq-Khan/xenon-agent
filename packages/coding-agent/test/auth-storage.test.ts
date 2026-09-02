@@ -191,102 +191,102 @@ describe("AuthStorage", () => {
 			expect(apiKey).toBe("literal_api_key_value");
 		});
 
-		test("prime inference falls back to Prime CLI config when enabled", async () => {
-			const primeConfigPath = join(tempDir, "prime-config.json");
-			writeFileSync(primeConfigPath, JSON.stringify({ api_key: "prime-cli-key" }));
+		test("xenon inference falls back to Xenon CLI config when enabled", async () => {
+			const xenonConfigPath = join(tempDir, "xenon-config.json");
+			writeFileSync(xenonConfigPath, JSON.stringify({ api_key: "xenon-cli-key" }));
 			writeAuthJson({});
 
 			authStorage = AuthStorage.create(authJsonPath, {
-				primeCliConfigPath: primeConfigPath,
-				usePrimeCliConfig: true,
+				xenonCliConfigPath: xenonConfigPath,
+				useXenonCliConfig: true,
 			});
 
-			await expect(authStorage.getApiKey("prime-inference")).resolves.toBe("prime-cli-key");
-			expect(authStorage.hasAuth("prime-inference")).toBe(true);
-			expect(authStorage.getAuthStatus("prime-inference")).toEqual({
+			await expect(authStorage.getApiKey("xenon-inference")).resolves.toBe("xenon-cli-key");
+			expect(authStorage.hasAuth("xenon-inference")).toBe(true);
+			expect(authStorage.getAuthStatus("xenon-inference")).toEqual({
 				configured: false,
-				source: "prime_cli",
-				label: "Prime CLI",
+				source: "xenon_cli",
+				label: "Xenon CLI",
 			});
 		});
 
-		test("prime cli config changes are picked up without reload", async () => {
-			const primeConfigPath = join(tempDir, "prime-config.json");
-			writeFileSync(primeConfigPath, JSON.stringify({ api_key: "prime-cli-key" }));
+		test("xenon cli config changes are picked up without reload", async () => {
+			const xenonConfigPath = join(tempDir, "xenon-config.json");
+			writeFileSync(xenonConfigPath, JSON.stringify({ api_key: "xenon-cli-key" }));
 			writeAuthJson({});
 
 			authStorage = AuthStorage.create(authJsonPath, {
-				primeCliConfigPath: primeConfigPath,
-				usePrimeCliConfig: true,
+				xenonCliConfigPath: xenonConfigPath,
+				useXenonCliConfig: true,
 			});
 
-			await expect(authStorage.getApiKey("prime-inference")).resolves.toBe("prime-cli-key");
-			writeFileSync(primeConfigPath, JSON.stringify({ api_key: "changed-prime-key" }));
-			await expect(authStorage.getApiKey("prime-inference")).resolves.toBe("changed-prime-key");
+			await expect(authStorage.getApiKey("xenon-inference")).resolves.toBe("xenon-cli-key");
+			writeFileSync(xenonConfigPath, JSON.stringify({ api_key: "changed-xenon-key" }));
+			await expect(authStorage.getApiKey("xenon-inference")).resolves.toBe("changed-xenon-key");
 		});
 
-		test("prime inference marks current Prime CLI auth stale", async () => {
-			const primeConfigPath = join(tempDir, "prime-config.json");
-			writeFileSync(primeConfigPath, JSON.stringify({ api_key: "prime-cli-key" }));
+		test("xenon inference marks current Xenon CLI auth stale", async () => {
+			const xenonConfigPath = join(tempDir, "xenon-config.json");
+			writeFileSync(xenonConfigPath, JSON.stringify({ api_key: "xenon-cli-key" }));
 			writeAuthJson({});
 
 			authStorage = AuthStorage.create(authJsonPath, {
-				primeCliConfigPath: primeConfigPath,
-				usePrimeCliConfig: true,
+				xenonCliConfigPath: xenonConfigPath,
+				useXenonCliConfig: true,
 			});
 
-			expect(authStorage.markAuthStale("prime-inference")).toBe(true);
+			expect(authStorage.markAuthStale("xenon-inference")).toBe(true);
 
-			expect(authStorage.hasAuth("prime-inference")).toBe(false);
-			await expect(authStorage.getApiKey("prime-inference")).resolves.toBeUndefined();
-			expect(authStorage.getAuthStatus("prime-inference")).toEqual({
+			expect(authStorage.hasAuth("xenon-inference")).toBe(false);
+			await expect(authStorage.getApiKey("xenon-inference")).resolves.toBeUndefined();
+			expect(authStorage.getAuthStatus("xenon-inference")).toEqual({
 				configured: false,
 				source: "stale",
 				label: "expired",
 			});
 		});
 
-		test("changed Prime CLI key no longer matches stale auth marker", async () => {
-			const primeConfigPath = join(tempDir, "prime-config.json");
-			writeFileSync(primeConfigPath, JSON.stringify({ api_key: "prime-cli-key" }));
+		test("changed Xenon CLI key no longer matches stale auth marker", async () => {
+			const xenonConfigPath = join(tempDir, "xenon-config.json");
+			writeFileSync(xenonConfigPath, JSON.stringify({ api_key: "xenon-cli-key" }));
 			writeAuthJson({});
 
 			authStorage = AuthStorage.create(authJsonPath, {
-				primeCliConfigPath: primeConfigPath,
-				usePrimeCliConfig: true,
+				xenonCliConfigPath: xenonConfigPath,
+				useXenonCliConfig: true,
 			});
-			authStorage.markAuthStale("prime-inference");
+			authStorage.markAuthStale("xenon-inference");
 
-			writeFileSync(primeConfigPath, JSON.stringify({ api_key: "changed-prime-key" }));
+			writeFileSync(xenonConfigPath, JSON.stringify({ api_key: "changed-xenon-key" }));
 
-			expect(authStorage.hasAuth("prime-inference")).toBe(true);
-			await expect(authStorage.getApiKey("prime-inference")).resolves.toBe("changed-prime-key");
-			expect(authStorage.getAuthStatus("prime-inference")).toEqual({
+			expect(authStorage.hasAuth("xenon-inference")).toBe(true);
+			await expect(authStorage.getApiKey("xenon-inference")).resolves.toBe("changed-xenon-key");
+			expect(authStorage.getAuthStatus("xenon-inference")).toEqual({
 				configured: false,
-				source: "prime_cli",
-				label: "Prime CLI",
+				source: "xenon_cli",
+				label: "Xenon CLI",
 			});
 		});
 
-		test("setPrimeInferenceApiKey clears stale Prime CLI auth marker", async () => {
-			const primeConfigPath = join(tempDir, "prime-config.json");
-			writeFileSync(primeConfigPath, JSON.stringify({ api_key: "prime-cli-key" }));
+		test("setXenonInferenceApiKey clears stale Xenon CLI auth marker", async () => {
+			const xenonConfigPath = join(tempDir, "xenon-config.json");
+			writeFileSync(xenonConfigPath, JSON.stringify({ api_key: "xenon-cli-key" }));
 			writeAuthJson({});
 
 			authStorage = AuthStorage.create(authJsonPath, {
-				primeCliConfigPath: primeConfigPath,
-				usePrimeCliConfig: true,
+				xenonCliConfigPath: xenonConfigPath,
+				useXenonCliConfig: true,
 			});
-			authStorage.markAuthStale("prime-inference");
+			authStorage.markAuthStale("xenon-inference");
 
-			authStorage.setPrimeInferenceApiKey("new-prime-key");
+			authStorage.setXenonInferenceApiKey("new-xenon-key");
 
-			expect(authStorage.hasAuth("prime-inference")).toBe(true);
-			await expect(authStorage.getApiKey("prime-inference")).resolves.toBe("new-prime-key");
-			expect(authStorage.getAuthStatus("prime-inference")).toEqual({
+			expect(authStorage.hasAuth("xenon-inference")).toBe(true);
+			await expect(authStorage.getApiKey("xenon-inference")).resolves.toBe("new-xenon-key");
+			expect(authStorage.getAuthStatus("xenon-inference")).toEqual({
 				configured: false,
-				source: "prime_cli",
-				label: "Prime CLI",
+				source: "xenon_cli",
+				label: "Xenon CLI",
 			});
 		});
 
@@ -331,234 +331,234 @@ describe("AuthStorage", () => {
 			expect(authStorage.getAuthStatus("anthropic")).toEqual({ configured: true, source: "stored" });
 		});
 
-		test("prime inference uses Prime CLI auth over stored auth", async () => {
-			const primeConfigPath = join(tempDir, "prime-config.json");
-			writeFileSync(primeConfigPath, JSON.stringify({ api_key: "prime-cli-key" }));
+		test("xenon inference uses Xenon CLI auth over stored auth", async () => {
+			const xenonConfigPath = join(tempDir, "xenon-config.json");
+			writeFileSync(xenonConfigPath, JSON.stringify({ api_key: "xenon-cli-key" }));
 			writeAuthJson({
-				"prime-inference": {
+				"xenon-inference": {
 					type: "api_key",
 					key: "agent-key",
 				},
 			});
 
 			authStorage = AuthStorage.create(authJsonPath, {
-				primeCliConfigPath: primeConfigPath,
-				usePrimeCliConfig: true,
+				xenonCliConfigPath: xenonConfigPath,
+				useXenonCliConfig: true,
 			});
 
-			await expect(authStorage.getApiKey("prime-inference")).resolves.toBe("prime-cli-key");
-			expect(authStorage.getAuthStatus("prime-inference")).toEqual({
+			await expect(authStorage.getApiKey("xenon-inference")).resolves.toBe("xenon-cli-key");
+			expect(authStorage.getAuthStatus("xenon-inference")).toEqual({
 				configured: false,
-				source: "prime_cli",
-				label: "Prime CLI",
+				source: "xenon_cli",
+				label: "Xenon CLI",
 			});
 		});
 
-		test("prime inference uses environment auth over Prime CLI and stored auth", async () => {
-			const originalPrimeApiKey = process.env.PRIME_API_KEY;
-			const originalPrimeTeamId = process.env.PRIME_TEAM_ID;
-			process.env.PRIME_API_KEY = "env-prime-key";
-			delete process.env.PRIME_TEAM_ID;
+		test("xenon inference uses environment auth over Xenon CLI and stored auth", async () => {
+			const originalXenonApiKey = process.env.XENON_API_KEY;
+			const originalXenonTeamId = process.env.XENON_TEAM_ID;
+			process.env.XENON_API_KEY = "env-xenon-key";
+			delete process.env.XENON_TEAM_ID;
 			try {
-				const primeConfigPath = join(tempDir, "prime-config.json");
+				const xenonConfigPath = join(tempDir, "xenon-config.json");
 				writeFileSync(
-					primeConfigPath,
-					JSON.stringify({ api_key: "prime-cli-key", team_id: "cli-team", team_name: "CLI Research" }),
+					xenonConfigPath,
+					JSON.stringify({ api_key: "xenon-cli-key", team_id: "cli-team", team_name: "CLI Research" }),
 				);
 				writeAuthJson({
-					"prime-inference": {
+					"xenon-inference": {
 						type: "api_key",
 						key: "agent-key",
-						primeTeam: { teamId: "stored-team", name: "Stored Research" },
+						xenonTeam: { teamId: "stored-team", name: "Stored Research" },
 					},
 				});
 
 				authStorage = AuthStorage.create(authJsonPath, {
-					primeCliConfigPath: primeConfigPath,
-					usePrimeCliConfig: true,
+					xenonCliConfigPath: xenonConfigPath,
+					useXenonCliConfig: true,
 				});
 
-				await expect(authStorage.getApiKey("prime-inference")).resolves.toBe("env-prime-key");
-				expect(authStorage.getAuthStatus("prime-inference")).toEqual({
+				await expect(authStorage.getApiKey("xenon-inference")).resolves.toBe("env-xenon-key");
+				expect(authStorage.getAuthStatus("xenon-inference")).toEqual({
 					configured: false,
 					source: "environment",
-					label: "PRIME_API_KEY",
+					label: "XENON_API_KEY",
 				});
-				expect(authStorage.getProviderHeaders("prime-inference")).toBeUndefined();
-				expect(authStorage.getPrimeInferenceTeamSelection()).toBeUndefined();
+				expect(authStorage.getProviderHeaders("xenon-inference")).toBeUndefined();
+				expect(authStorage.getXenonInferenceTeamSelection()).toBeUndefined();
 			} finally {
-				if (originalPrimeApiKey === undefined) {
-					delete process.env.PRIME_API_KEY;
+				if (originalXenonApiKey === undefined) {
+					delete process.env.XENON_API_KEY;
 				} else {
-					process.env.PRIME_API_KEY = originalPrimeApiKey;
+					process.env.XENON_API_KEY = originalXenonApiKey;
 				}
-				if (originalPrimeTeamId === undefined) {
-					delete process.env.PRIME_TEAM_ID;
+				if (originalXenonTeamId === undefined) {
+					delete process.env.XENON_TEAM_ID;
 				} else {
-					process.env.PRIME_TEAM_ID = originalPrimeTeamId;
+					process.env.XENON_TEAM_ID = originalXenonTeamId;
 				}
 			}
 		});
 
-		test("prime inference provider headers use selected Prime CLI team", () => {
-			const primeConfigPath = join(tempDir, "prime-config.json");
+		test("xenon inference provider headers use selected Xenon CLI team", () => {
+			const xenonConfigPath = join(tempDir, "xenon-config.json");
 			writeFileSync(
-				primeConfigPath,
+				xenonConfigPath,
 				JSON.stringify({
-					api_key: "prime-cli-key",
+					api_key: "xenon-cli-key",
 					team_id: "cli-team",
 					team_name: "CLI Research",
 					team_role: "admin",
 				}),
 			);
 			writeAuthJson({
-				"prime-inference": {
+				"xenon-inference": {
 					type: "api_key",
 					key: "agent-key",
-					primeTeam: { teamId: "team-1", name: "Research", slug: "research", role: "admin" },
+					xenonTeam: { teamId: "team-1", name: "Research", slug: "research", role: "admin" },
 				},
 			});
 
 			authStorage = AuthStorage.create(authJsonPath, {
-				primeCliConfigPath: primeConfigPath,
-				usePrimeCliConfig: true,
+				xenonCliConfigPath: xenonConfigPath,
+				useXenonCliConfig: true,
 			});
 
-			expect(authStorage.getProviderHeaders("prime-inference")).toEqual({ "X-Prime-Team-ID": "cli-team" });
-			expect(authStorage.getPrimeInferenceTeamSelection()).toEqual({
+			expect(authStorage.getProviderHeaders("xenon-inference")).toEqual({ "X-Xenon-Team-ID": "cli-team" });
+			expect(authStorage.getXenonInferenceTeamSelection()).toEqual({
 				teamId: "cli-team",
 				name: "CLI Research",
 				role: "admin",
 			});
 		});
 
-		test("prime inference legacy personal selection suppresses Prime CLI team fallback without Prime CLI key", () => {
-			const primeConfigPath = join(tempDir, "prime-config.json");
-			writeFileSync(primeConfigPath, JSON.stringify({ team_id: "cli-team" }));
+		test("xenon inference legacy personal selection suppresses Xenon CLI team fallback without Xenon CLI key", () => {
+			const xenonConfigPath = join(tempDir, "xenon-config.json");
+			writeFileSync(xenonConfigPath, JSON.stringify({ team_id: "cli-team" }));
 			writeAuthJson({
-				"prime-inference": {
+				"xenon-inference": {
 					type: "api_key",
 					key: "agent-key",
-					primeTeam: null,
+					xenonTeam: null,
 				},
 			});
 
 			authStorage = AuthStorage.create(authJsonPath, {
-				primeCliConfigPath: primeConfigPath,
-				usePrimeCliConfig: true,
+				xenonCliConfigPath: xenonConfigPath,
+				useXenonCliConfig: true,
 			});
 
-			expect(authStorage.getProviderHeaders("prime-inference")).toBeUndefined();
-			expect(authStorage.getPrimeInferenceTeamSelection()).toBeNull();
+			expect(authStorage.getProviderHeaders("xenon-inference")).toBeUndefined();
+			expect(authStorage.getXenonInferenceTeamSelection()).toBeNull();
 		});
 
-		test("prime inference legacy personal selection suppresses Prime CLI team with Prime CLI key", () => {
-			const primeConfigPath = join(tempDir, "prime-config.json");
-			writeFileSync(primeConfigPath, JSON.stringify({ api_key: "prime-cli-key", team_id: "cli-team" }));
+		test("xenon inference legacy personal selection suppresses Xenon CLI team with Xenon CLI key", () => {
+			const xenonConfigPath = join(tempDir, "xenon-config.json");
+			writeFileSync(xenonConfigPath, JSON.stringify({ api_key: "xenon-cli-key", team_id: "cli-team" }));
 			writeAuthJson({
-				"prime-inference": {
+				"xenon-inference": {
 					type: "api_key",
 					key: "agent-key",
-					primeTeam: null,
+					xenonTeam: null,
 				},
 			});
 
 			authStorage = AuthStorage.create(authJsonPath, {
-				primeCliConfigPath: primeConfigPath,
-				usePrimeCliConfig: true,
+				xenonCliConfigPath: xenonConfigPath,
+				useXenonCliConfig: true,
 			});
 
-			expect(authStorage.getProviderHeaders("prime-inference")).toBeUndefined();
-			expect(authStorage.getPrimeInferenceTeamSelection()).toBeNull();
+			expect(authStorage.getProviderHeaders("xenon-inference")).toBeUndefined();
+			expect(authStorage.getXenonInferenceTeamSelection()).toBeNull();
 		});
 
-		test("prime inference environment team overrides legacy personal selection", () => {
-			const originalPrimeTeamId = process.env.PRIME_TEAM_ID;
-			process.env.PRIME_TEAM_ID = "env-team";
+		test("xenon inference environment team overrides legacy personal selection", () => {
+			const originalXenonTeamId = process.env.XENON_TEAM_ID;
+			process.env.XENON_TEAM_ID = "env-team";
 			try {
-				const primeConfigPath = join(tempDir, "prime-config.json");
-				writeFileSync(primeConfigPath, JSON.stringify({ team_id: "cli-team" }));
+				const xenonConfigPath = join(tempDir, "xenon-config.json");
+				writeFileSync(xenonConfigPath, JSON.stringify({ team_id: "cli-team" }));
 				writeAuthJson({
-					"prime-inference": {
+					"xenon-inference": {
 						type: "api_key",
 						key: "agent-key",
-						primeTeam: null,
+						xenonTeam: null,
 					},
 				});
 
 				authStorage = AuthStorage.create(authJsonPath, {
-					primeCliConfigPath: primeConfigPath,
-					usePrimeCliConfig: true,
+					xenonCliConfigPath: xenonConfigPath,
+					useXenonCliConfig: true,
 				});
 
-				expect(authStorage.getProviderHeaders("prime-inference")).toEqual({ "X-Prime-Team-ID": "env-team" });
-				expect(authStorage.getPrimeInferenceTeamSelection()).toBeUndefined();
+				expect(authStorage.getProviderHeaders("xenon-inference")).toEqual({ "X-Xenon-Team-ID": "env-team" });
+				expect(authStorage.getXenonInferenceTeamSelection()).toBeUndefined();
 			} finally {
-				if (originalPrimeTeamId === undefined) {
-					delete process.env.PRIME_TEAM_ID;
+				if (originalXenonTeamId === undefined) {
+					delete process.env.XENON_TEAM_ID;
 				} else {
-					process.env.PRIME_TEAM_ID = originalPrimeTeamId;
+					process.env.XENON_TEAM_ID = originalXenonTeamId;
 				}
 			}
 		});
 
-		test("prime inference missing Agent team selection falls back to Prime CLI team", () => {
-			const primeConfigPath = join(tempDir, "prime-config.json");
-			writeFileSync(primeConfigPath, JSON.stringify({ api_key: "prime-cli-key", team_id: "cli-team" }));
+		test("xenon inference missing Agent team selection falls back to Xenon CLI team", () => {
+			const xenonConfigPath = join(tempDir, "xenon-config.json");
+			writeFileSync(xenonConfigPath, JSON.stringify({ api_key: "xenon-cli-key", team_id: "cli-team" }));
 			writeAuthJson({
-				"prime-inference": {
+				"xenon-inference": {
 					type: "api_key",
 					key: "agent-key",
 				},
 			});
 
 			authStorage = AuthStorage.create(authJsonPath, {
-				primeCliConfigPath: primeConfigPath,
-				usePrimeCliConfig: true,
+				xenonCliConfigPath: xenonConfigPath,
+				useXenonCliConfig: true,
 			});
 
-			expect(authStorage.getProviderHeaders("prime-inference")).toEqual({ "X-Prime-Team-ID": "cli-team" });
+			expect(authStorage.getProviderHeaders("xenon-inference")).toEqual({ "X-Xenon-Team-ID": "cli-team" });
 		});
 
-		test("prime inference provider header changes are picked up without reload", () => {
-			const primeConfigPath = join(tempDir, "prime-config.json");
-			writeFileSync(primeConfigPath, JSON.stringify({ api_key: "prime-cli-key", team_id: "team-1" }));
+		test("xenon inference provider header changes are picked up without reload", () => {
+			const xenonConfigPath = join(tempDir, "xenon-config.json");
+			writeFileSync(xenonConfigPath, JSON.stringify({ api_key: "xenon-cli-key", team_id: "team-1" }));
 			writeAuthJson({});
 
 			authStorage = AuthStorage.create(authJsonPath, {
-				primeCliConfigPath: primeConfigPath,
-				usePrimeCliConfig: true,
+				xenonCliConfigPath: xenonConfigPath,
+				useXenonCliConfig: true,
 			});
 
-			expect(authStorage.getProviderHeaders("prime-inference")).toEqual({ "X-Prime-Team-ID": "team-1" });
-			writeFileSync(primeConfigPath, JSON.stringify({ api_key: "prime-cli-key", team_id: "team-2" }));
-			expect(authStorage.getProviderHeaders("prime-inference")).toEqual({ "X-Prime-Team-ID": "team-2" });
+			expect(authStorage.getProviderHeaders("xenon-inference")).toEqual({ "X-Xenon-Team-ID": "team-1" });
+			writeFileSync(xenonConfigPath, JSON.stringify({ api_key: "xenon-cli-key", team_id: "team-2" }));
+			expect(authStorage.getProviderHeaders("xenon-inference")).toEqual({ "X-Xenon-Team-ID": "team-2" });
 		});
 
-		test("setPrimeInferenceApiKey creates Prime CLI config", async () => {
-			const primeConfigPath = join(tempDir, "prime", "config.json");
+		test("setXenonInferenceApiKey creates Xenon CLI config", async () => {
+			const xenonConfigPath = join(tempDir, "xenon", "config.json");
 			writeAuthJson({});
 
 			authStorage = AuthStorage.create(authJsonPath, {
-				primeCliConfigPath: primeConfigPath,
-				usePrimeCliConfig: true,
+				xenonCliConfigPath: xenonConfigPath,
+				useXenonCliConfig: true,
 			});
 
-			authStorage.setPrimeInferenceApiKey("new-prime-key");
+			authStorage.setXenonInferenceApiKey("new-xenon-key");
 
-			const config = JSON.parse(readFileSync(primeConfigPath, "utf-8")) as Record<string, unknown>;
-			expect(config.api_key).toBe("new-prime-key");
-			expect(statSync(primeConfigPath).mode & 0o777).toBe(0o600);
-			expect(authStorage.has("prime-inference")).toBe(false);
-			await expect(authStorage.getApiKey("prime-inference")).resolves.toBe("new-prime-key");
+			const config = JSON.parse(readFileSync(xenonConfigPath, "utf-8")) as Record<string, unknown>;
+			expect(config.api_key).toBe("new-xenon-key");
+			expect(statSync(xenonConfigPath).mode & 0o777).toBe(0o600);
+			expect(authStorage.has("xenon-inference")).toBe(false);
+			await expect(authStorage.getApiKey("xenon-inference")).resolves.toBe("new-xenon-key");
 		});
 
-		test("setPrimeInferenceApiKey clears stale Prime CLI team selection", () => {
-			const primeConfigPath = join(tempDir, "prime-config.json");
+		test("setXenonInferenceApiKey clears stale Xenon CLI team selection", () => {
+			const xenonConfigPath = join(tempDir, "xenon-config.json");
 			writeFileSync(
-				primeConfigPath,
+				xenonConfigPath,
 				JSON.stringify({
-					api_key: "old-prime-key",
+					api_key: "old-xenon-key",
 					team_id: "old-team",
 					team_name: "Old Team",
 					team_role: "admin",
@@ -567,218 +567,218 @@ describe("AuthStorage", () => {
 			writeAuthJson({});
 
 			authStorage = AuthStorage.create(authJsonPath, {
-				primeCliConfigPath: primeConfigPath,
-				usePrimeCliConfig: true,
+				xenonCliConfigPath: xenonConfigPath,
+				useXenonCliConfig: true,
 			});
 
-			authStorage.setPrimeInferenceApiKey("new-prime-key");
+			authStorage.setXenonInferenceApiKey("new-xenon-key");
 
-			const config = JSON.parse(readFileSync(primeConfigPath, "utf-8")) as Record<string, unknown>;
-			expect(config.api_key).toBe("new-prime-key");
+			const config = JSON.parse(readFileSync(xenonConfigPath, "utf-8")) as Record<string, unknown>;
+			expect(config.api_key).toBe("new-xenon-key");
 			expect(config.team_id).toBeUndefined();
 			expect(config.team_name).toBeUndefined();
 			expect(config.team_role).toBeUndefined();
 		});
 
-		test("setPrimeInferenceApiKey preserves Prime CLI team selection for the same key", () => {
-			const primeConfigPath = join(tempDir, "prime-config.json");
+		test("setXenonInferenceApiKey preserves Xenon CLI team selection for the same key", () => {
+			const xenonConfigPath = join(tempDir, "xenon-config.json");
 			writeFileSync(
-				primeConfigPath,
+				xenonConfigPath,
 				JSON.stringify({
-					api_key: "prime-cli-key",
+					api_key: "xenon-cli-key",
 					team_id: "team-1",
 					team_name: "Research",
 					team_role: "admin",
 				}),
 			);
 			writeAuthJson({
-				"prime-inference": {
+				"xenon-inference": {
 					type: "api_key",
 					key: "agent-key",
 				},
 			});
 
 			authStorage = AuthStorage.create(authJsonPath, {
-				primeCliConfigPath: primeConfigPath,
-				usePrimeCliConfig: true,
+				xenonCliConfigPath: xenonConfigPath,
+				useXenonCliConfig: true,
 			});
 
-			authStorage.setPrimeInferenceApiKey("prime-cli-key");
+			authStorage.setXenonInferenceApiKey("xenon-cli-key");
 
-			const config = JSON.parse(readFileSync(primeConfigPath, "utf-8")) as Record<string, unknown>;
-			expect(config.api_key).toBe("prime-cli-key");
+			const config = JSON.parse(readFileSync(xenonConfigPath, "utf-8")) as Record<string, unknown>;
+			expect(config.api_key).toBe("xenon-cli-key");
 			expect(config.team_id).toBe("team-1");
 			expect(config.team_name).toBe("Research");
 			expect(config.team_role).toBe("admin");
-			expect(authStorage.has("prime-inference")).toBe(false);
+			expect(authStorage.has("xenon-inference")).toBe(false);
 		});
 
-		test("setPrimeInferenceApiKey migrates legacy team selection for the same Prime CLI key", () => {
-			const primeConfigPath = join(tempDir, "prime-config.json");
-			writeFileSync(primeConfigPath, JSON.stringify({ api_key: "prime-cli-key" }));
+		test("setXenonInferenceApiKey migrates legacy team selection for the same Xenon CLI key", () => {
+			const xenonConfigPath = join(tempDir, "xenon-config.json");
+			writeFileSync(xenonConfigPath, JSON.stringify({ api_key: "xenon-cli-key" }));
 			writeAuthJson({
-				"prime-inference": {
+				"xenon-inference": {
 					type: "api_key",
 					key: "agent-key",
-					primeTeam: { teamId: "team-1", name: "Research", slug: "research", role: "admin" },
+					xenonTeam: { teamId: "team-1", name: "Research", slug: "research", role: "admin" },
 				},
 			});
 
 			authStorage = AuthStorage.create(authJsonPath, {
-				primeCliConfigPath: primeConfigPath,
-				usePrimeCliConfig: true,
+				xenonCliConfigPath: xenonConfigPath,
+				useXenonCliConfig: true,
 			});
 
-			authStorage.setPrimeInferenceApiKey("prime-cli-key");
+			authStorage.setXenonInferenceApiKey("xenon-cli-key");
 
-			const config = JSON.parse(readFileSync(primeConfigPath, "utf-8")) as Record<string, unknown>;
-			expect(config.api_key).toBe("prime-cli-key");
+			const config = JSON.parse(readFileSync(xenonConfigPath, "utf-8")) as Record<string, unknown>;
+			expect(config.api_key).toBe("xenon-cli-key");
 			expect(config.team_id).toBe("team-1");
 			expect(config.team_name).toBe("Research");
 			expect(config.team_role).toBe("admin");
-			expect(authStorage.has("prime-inference")).toBe(false);
-			expect(authStorage.getProviderHeaders("prime-inference")).toEqual({ "X-Prime-Team-ID": "team-1" });
+			expect(authStorage.has("xenon-inference")).toBe(false);
+			expect(authStorage.getProviderHeaders("xenon-inference")).toEqual({ "X-Xenon-Team-ID": "team-1" });
 		});
 
-		test("setPrimeInferenceApiKey migrates legacy personal selection for the same Prime CLI key", () => {
-			const primeConfigPath = join(tempDir, "prime-config.json");
+		test("setXenonInferenceApiKey migrates legacy personal selection for the same Xenon CLI key", () => {
+			const xenonConfigPath = join(tempDir, "xenon-config.json");
 			writeFileSync(
-				primeConfigPath,
+				xenonConfigPath,
 				JSON.stringify({
-					api_key: "prime-cli-key",
+					api_key: "xenon-cli-key",
 					team_id: "team-1",
 					team_name: "Research",
 				}),
 			);
 			writeAuthJson({
-				"prime-inference": {
+				"xenon-inference": {
 					type: "api_key",
 					key: "agent-key",
-					primeTeam: null,
+					xenonTeam: null,
 				},
 			});
 
 			authStorage = AuthStorage.create(authJsonPath, {
-				primeCliConfigPath: primeConfigPath,
-				usePrimeCliConfig: true,
+				xenonCliConfigPath: xenonConfigPath,
+				useXenonCliConfig: true,
 			});
 
-			authStorage.setPrimeInferenceApiKey("prime-cli-key");
+			authStorage.setXenonInferenceApiKey("xenon-cli-key");
 
-			const config = JSON.parse(readFileSync(primeConfigPath, "utf-8")) as Record<string, unknown>;
-			expect(config.api_key).toBe("prime-cli-key");
+			const config = JSON.parse(readFileSync(xenonConfigPath, "utf-8")) as Record<string, unknown>;
+			expect(config.api_key).toBe("xenon-cli-key");
 			expect(config.team_id).toBeUndefined();
 			expect(config.team_name).toBeUndefined();
-			expect(authStorage.has("prime-inference")).toBe(false);
-			expect(authStorage.getProviderHeaders("prime-inference")).toBeUndefined();
+			expect(authStorage.has("xenon-inference")).toBe(false);
+			expect(authStorage.getProviderHeaders("xenon-inference")).toBeUndefined();
 		});
 
-		test("setPrimeInferenceApiKey removes legacy Prime Agent credential after Prime CLI save", () => {
-			const primeConfigPath = join(tempDir, "prime-config.json");
+		test("setXenonInferenceApiKey removes legacy Xenon Agent credential after Xenon CLI save", () => {
+			const xenonConfigPath = join(tempDir, "xenon-config.json");
 			writeAuthJson({
-				"prime-inference": {
+				"xenon-inference": {
 					type: "api_key",
 					key: "agent-key",
-					primeTeam: { teamId: "team-1", name: "Research" },
+					xenonTeam: { teamId: "team-1", name: "Research" },
 				},
 			});
 
 			authStorage = AuthStorage.create(authJsonPath, {
-				primeCliConfigPath: primeConfigPath,
-				usePrimeCliConfig: true,
+				xenonCliConfigPath: xenonConfigPath,
+				useXenonCliConfig: true,
 			});
 
-			authStorage.setPrimeInferenceApiKey("new-prime-key");
+			authStorage.setXenonInferenceApiKey("new-xenon-key");
 
 			const agentAuth = JSON.parse(readFileSync(authJsonPath, "utf-8")) as Record<string, unknown>;
-			expect(agentAuth["prime-inference"]).toBeUndefined();
-			expect(authStorage.has("prime-inference")).toBe(false);
+			expect(agentAuth["xenon-inference"]).toBeUndefined();
+			expect(authStorage.has("xenon-inference")).toBe(false);
 		});
 
-		test("setPrimeInferenceApiKey throws when Prime CLI config cannot be written", () => {
-			const primeConfigPath = join(tempDir, "prime-config-dir");
-			mkdirSync(primeConfigPath);
+		test("setXenonInferenceApiKey throws when Xenon CLI config cannot be written", () => {
+			const xenonConfigPath = join(tempDir, "xenon-config-dir");
+			mkdirSync(xenonConfigPath);
 			writeAuthJson({});
 
 			authStorage = AuthStorage.create(authJsonPath, {
-				primeCliConfigPath: primeConfigPath,
-				usePrimeCliConfig: true,
+				xenonCliConfigPath: xenonConfigPath,
+				useXenonCliConfig: true,
 			});
 
-			expect(() => authStorage.setPrimeInferenceApiKey("new-prime-key")).toThrow();
+			expect(() => authStorage.setXenonInferenceApiKey("new-xenon-key")).toThrow();
 			expect(authStorage.drainErrors()).toHaveLength(1);
 		});
 
-		test("setPrimeInferenceApiKey preserves team selection when Prime CLI config is disabled", () => {
+		test("setXenonInferenceApiKey preserves team selection when Xenon CLI config is disabled", () => {
 			writeAuthJson({
-				"prime-inference": {
+				"xenon-inference": {
 					type: "api_key",
 					key: "agent-key",
-					primeTeam: { teamId: "team-1", name: "Research" },
+					xenonTeam: { teamId: "team-1", name: "Research" },
 				},
 			});
 
-			authStorage = AuthStorage.create(authJsonPath, { usePrimeCliConfig: false });
+			authStorage = AuthStorage.create(authJsonPath, { useXenonCliConfig: false });
 
-			authStorage.setPrimeInferenceApiKey("new-prime-key");
+			authStorage.setXenonInferenceApiKey("new-xenon-key");
 
-			expect(authStorage.get("prime-inference")).toEqual({
+			expect(authStorage.get("xenon-inference")).toEqual({
 				type: "api_key",
-				key: "new-prime-key",
-				primeTeam: { teamId: "team-1", name: "Research" },
+				key: "new-xenon-key",
+				xenonTeam: { teamId: "team-1", name: "Research" },
 			});
 		});
 
-		test("logout clears Prime CLI credentials when enabled", async () => {
-			const primeConfigPath = join(tempDir, "prime-config.json");
+		test("logout clears Xenon CLI credentials when enabled", async () => {
+			const xenonConfigPath = join(tempDir, "xenon-config.json");
 			writeFileSync(
-				primeConfigPath,
+				xenonConfigPath,
 				JSON.stringify({
-					api_key: "prime-cli-key",
+					api_key: "xenon-cli-key",
 					team_id: "team-1",
 					team_name: "Research",
 				}),
 			);
 			writeAuthJson({
-				"prime-inference": {
+				"xenon-inference": {
 					type: "api_key",
 					key: "agent-key",
-					primeTeam: { teamId: "team-1", name: "Research" },
+					xenonTeam: { teamId: "team-1", name: "Research" },
 				},
 			});
 
 			authStorage = AuthStorage.create(authJsonPath, {
-				primeCliConfigPath: primeConfigPath,
-				usePrimeCliConfig: true,
+				xenonCliConfigPath: xenonConfigPath,
+				useXenonCliConfig: true,
 			});
 
-			authStorage.logout("prime-inference");
+			authStorage.logout("xenon-inference");
 
-			const config = JSON.parse(readFileSync(primeConfigPath, "utf-8")) as Record<string, unknown>;
+			const config = JSON.parse(readFileSync(xenonConfigPath, "utf-8")) as Record<string, unknown>;
 			expect(config.api_key).toBeUndefined();
 			expect(config.team_id).toBeUndefined();
 			expect(config.team_name).toBeUndefined();
-			expect(authStorage.has("prime-inference")).toBe(false);
-			await expect(authStorage.getApiKey("prime-inference")).resolves.toBeUndefined();
+			expect(authStorage.has("xenon-inference")).toBe(false);
+			await expect(authStorage.getApiKey("xenon-inference")).resolves.toBeUndefined();
 		});
 
-		test("setPrimeInferenceTeamSelection writes Prime CLI config", () => {
-			const primeConfigPath = join(tempDir, "prime-config.json");
-			writeFileSync(primeConfigPath, JSON.stringify({ api_key: "prime-cli-key" }));
+		test("setXenonInferenceTeamSelection writes Xenon CLI config", () => {
+			const xenonConfigPath = join(tempDir, "xenon-config.json");
+			writeFileSync(xenonConfigPath, JSON.stringify({ api_key: "xenon-cli-key" }));
 			writeAuthJson({});
 
 			authStorage = AuthStorage.create(authJsonPath, {
-				primeCliConfigPath: primeConfigPath,
-				usePrimeCliConfig: true,
+				xenonCliConfigPath: xenonConfigPath,
+				useXenonCliConfig: true,
 			});
 
-			authStorage.setPrimeInferenceTeamSelection({ teamId: "team-1", name: "Research", role: "admin" });
+			authStorage.setXenonInferenceTeamSelection({ teamId: "team-1", name: "Research", role: "admin" });
 
-			const config = JSON.parse(readFileSync(primeConfigPath, "utf-8")) as Record<string, unknown>;
+			const config = JSON.parse(readFileSync(xenonConfigPath, "utf-8")) as Record<string, unknown>;
 			expect(config.team_id).toBe("team-1");
 			expect(config.team_name).toBe("Research");
 			expect(config.team_role).toBe("admin");
-			expect(authStorage.getProviderHeaders("prime-inference")).toEqual({ "X-Prime-Team-ID": "team-1" });
+			expect(authStorage.getProviderHeaders("xenon-inference")).toEqual({ "X-Xenon-Team-ID": "team-1" });
 		});
 
 		test("apiKey command can use shell features like pipes", async () => {

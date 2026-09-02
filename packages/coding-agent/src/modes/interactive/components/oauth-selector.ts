@@ -8,7 +8,7 @@ import {
 	TruncatedText,
 } from "@earendil-works/pi-tui";
 import type { AuthStatus, AuthStorage } from "../../../core/auth-storage.js";
-import { PRIME_INFERENCE_PROVIDER_ID } from "../../../core/prime-inference-auth.js";
+import { XENON_INFERENCE_PROVIDER_ID } from "../../../core/xenon-inference-auth.js";
 import { theme } from "../theme/theme.js";
 import {
 	getMenuListLayout,
@@ -200,8 +200,8 @@ export class OAuthSelectorComponent extends Container implements Focusable {
 				return rankDelta;
 			}
 			if (this.mode === "login" && a.id !== b.id) {
-				if (a.id === PRIME_INFERENCE_PROVIDER_ID) return -1;
-				if (b.id === PRIME_INFERENCE_PROVIDER_ID) return 1;
+				if (a.id === XENON_INFERENCE_PROVIDER_ID) return -1;
+				if (b.id === XENON_INFERENCE_PROVIDER_ID) return 1;
 			}
 			return compareAuthSelectorProviders(a, b);
 		});
@@ -345,8 +345,8 @@ export class OAuthSelectorComponent extends Container implements Focusable {
 		switch (status.source) {
 			case "environment":
 				return theme.fg("success", `env: ${status.label ?? "API key"}`);
-			case "prime_cli":
-				return theme.fg("success", status.label ?? "Prime CLI");
+			case "xenon_cli":
+				return theme.fg("success", status.label ?? "Xenon CLI");
 			case "runtime":
 				return theme.fg("success", "runtime API key");
 			case "fallback":

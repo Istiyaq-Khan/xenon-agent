@@ -112,15 +112,15 @@ const ZAI_THINKING_COMPAT: OpenAICompletionsCompat = {
 	thinkingFormat: "zai",
 };
 
-const PRIME_INFERENCE_BASE_URL = "https://api.pinference.ai/api/v1";
-const PRIME_INFERENCE_COMPAT: OpenAICompletionsCompat = {
+const XENON_INFERENCE_BASE_URL = "https://api.pinference.ai/api/v1";
+const XENON_INFERENCE_COMPAT: OpenAICompletionsCompat = {
 	supportsStore: false,
 	supportsDeveloperRole: false,
 	supportsReasoningEffort: true,
 	maxTokensField: "max_tokens",
 	supportsStrictMode: false,
 };
-interface PrimeInferenceCatalogEntry {
+interface XenonInferenceCatalogEntry {
 	id: string;
 	input: number;
 	output: number;
@@ -129,21 +129,21 @@ interface PrimeInferenceCatalogEntry {
 	reasoning?: boolean;
 }
 
-interface PrimeInferenceModelMetadata {
+interface XenonInferenceModelMetadata {
 	contextWindow?: number;
 	maxTokens?: number;
 	vision?: boolean;
 	name?: string;
 }
 
-// The full Prime Inference catalog is registered (minus raw/duplicate variants).
-// Prime's /models endpoint publishes pricing only, so context/output limits and
+// The full Xenon Inference catalog is registered (minus raw/duplicate variants).
+// Xenon's /models endpoint publishes pricing only, so context/output limits and
 // modalities are read from OpenRouter's public catalog, used here purely as a
 // published spec sheet for the same upstream models — requests always go to
-// Prime's own baseUrl. Entries below override those specs where the Prime route
+// Xenon's own baseUrl. Entries below override those specs where the Xenon route
 // enforces a different limit (verified against the live API) or fill gaps for
 // models OpenRouter does not list or leaves incomplete.
-const PRIME_INFERENCE_MODEL_METADATA: Record<string, PrimeInferenceModelMetadata> = {
+const XENON_INFERENCE_MODEL_METADATA: Record<string, XenonInferenceModelMetadata> = {
 	// These routes accept 200k, checked against the live API 2026-07-08. The
 	// other Claude routes take the full window their spec lists.
 	"anthropic/claude-sonnet-4": { contextWindow: 200000 },
@@ -175,7 +175,7 @@ const PRIME_INFERENCE_MODEL_METADATA: Record<string, PrimeInferenceModelMetadata
 
 // Flagship models pinned above the long tail in the model picker, so the full
 // catalog doesn't flood /model. Everything else stays selectable via search.
-const PRIME_INFERENCE_FEATURED_MODELS = new Set([
+const XENON_INFERENCE_FEATURED_MODELS = new Set([
 	"anthropic/claude-fable-5",
 	"anthropic/claude-haiku-4.5",
 	"anthropic/claude-opus-4.6",
@@ -209,20 +209,20 @@ const PRIME_INFERENCE_FEATURED_MODELS = new Set([
 	"z-ai/glm-5.2",
 ]);
 
-// Prime ids whose OpenRouter listing uses a different id. Empty today — Prime
+// Xenon ids whose OpenRouter listing uses a different id. Empty today — Xenon
 // currently publishes ids that match OpenRouter's, but HF-style ids show up
 // whenever a new route is added, so the mapping stays.
-const PRIME_INFERENCE_OPENROUTER_ALIASES: Record<string, string> = {};
+const XENON_INFERENCE_OPENROUTER_ALIASES: Record<string, string> = {};
 
 // Conservative fallbacks for catalog models with no OpenRouter match and no
 // override above: an under-declared window degrades gracefully, an
 // over-declared one breaks context tracking.
-const PRIME_INFERENCE_DEFAULT_CONTEXT_WINDOW = 128000;
-const PRIME_INFERENCE_DEFAULT_MAX_TOKENS = 8192;
+const XENON_INFERENCE_DEFAULT_CONTEXT_WINDOW = 128000;
+const XENON_INFERENCE_DEFAULT_MAX_TOKENS = 8192;
 
 // Raw checkpoints and duplicate routes that would clutter the picker: BF16
 // exports, fine-tune outputs, zai-org/ and HF-cased twins of canonical ids.
-function isPrimeInferenceRawVariant(modelId: string): boolean {
+function isXenonInferenceRawVariant(modelId: string): boolean {
 	const id = modelId.toLowerCase();
 	if (id.endsWith("-bf16") || id.includes(":")) {
 		return true;
@@ -231,7 +231,7 @@ function isPrimeInferenceRawVariant(modelId: string): boolean {
 	return vendor === "zai-org" || vendor !== vendor.toLowerCase();
 }
 
-function isPrimeInferencePrivateModel(modelId: string): boolean {
+function isXenonInferencePrivateModel(modelId: string): boolean {
 	const id = modelId.toLowerCase();
 	return id.startsWith("internal/") || id.startsWith("dev/");
 }
@@ -379,17 +379,17 @@ function getOptionalBoolean(value: unknown): boolean | undefined {
 	return typeof value === "boolean" ? value : undefined;
 }
 
-function readPrimeCliConfig(): Record<string, unknown> {
+function readXenonCliConfig(): Record<string, unknown> {
 	try {
-		const parsed = JSON.parse(readFileSync(join(homedir(), ".prime", "config.json"), "utf8"));
+		const parsed = JSON.parse(readFileSync(join(homedir(), ".xenon", "config.json"), "utf8"));
 		return isRecord(parsed) ? parsed : {};
 	} catch {
 		return {};
 	}
 }
 
-function getPrimeInferenceConfigValue(
-	envName: "PRIME_API_KEY" | "PRIME_TEAM_ID",
+function getXenonInferenceConfigValue(
+	envName: "XENON_API_KEY" | "XENON_TEAM_ID",
 	config: Record<string, unknown>,
 	configKeys: readonly string[],
 ): string | undefined {
@@ -408,34 +408,38 @@ function getPrimeInferenceConfigValue(
 	return undefined;
 }
 
-function getPrimeInferenceHeaders(apiKey: string | undefined, teamId: string | undefined): Record<string, string> | undefined {
+function getXenonInferenceHeaders(apiKey: string | undefined, teamId: string | undefined): Record<string, string> | undefined {
 	const headers: Record<string, string> = {};
 	if (apiKey) {
 		headers.Authorization = `Bearer ${apiKey}`;
 	}
 	if (teamId) {
-		headers["X-Prime-Team-ID"] = teamId;
+		headers["X-Xenon-Team-ID"] = teamId;
 	}
 
 	return Object.keys(headers).length > 0 ? headers : undefined;
 }
 
-function getPrimeInferenceCacheCosts(modelId: string, inputCost: number): { cacheRead: number; cacheWrite: number } {
+function getXenonInferenceCacheCosts(modelId: string, inputCost: number): { cacheRead: number; cacheWrite: number } {
 	return modelId.toLowerCase().startsWith("anthropic/")
 		? getAnthropicCacheCosts(inputCost, "5m")
 		: { cacheRead: 0, cacheWrite: 0 };
 }
 
-function getExistingPrimeInferenceModels(): Model<"openai-completions">[] {
-	const models = EXISTING_MODELS["prime-inference"] as unknown as Record<string, Model<"openai-completions">>;
+function getExistingXenonInferenceModels(): Model<"openai-completions">[] {
+	const models = Object.values(EXISTING_MODELS).find((providerModels) =>
+		Object.values(providerModels).some((model) => model.baseUrl === XENON_INFERENCE_BASE_URL),
+	) as Record<string, Model<"openai-completions">> | undefined;
+	if (!models) return [];
 	return Object.values(models)
-		.filter((model) => !isPrimeInferenceRawVariant(model.id) && !isPrimeInferencePrivateModel(model.id))
+		.filter((model) => !isXenonInferenceRawVariant(model.id) && !isXenonInferencePrivateModel(model.id))
 		.map((model) => ({
 			...model,
+			provider: "xenon-inference",
 			input: [...model.input],
 			cost: {
 				...model.cost,
-				...getPrimeInferenceCacheCosts(model.id, model.cost.input),
+				...getXenonInferenceCacheCosts(model.id, model.cost.input),
 			},
 			...(model.compat ? { compat: { ...model.compat } } : {}),
 			...(model.thinkingLevelMap ? { thinkingLevelMap: { ...model.thinkingLevelMap } } : {}),
@@ -443,7 +447,7 @@ function getExistingPrimeInferenceModels(): Model<"openai-completions">[] {
 		}));
 }
 
-function mergePrimeInferenceModels(
+function mergeXenonInferenceModels(
 	snapshotModels: Model<"openai-completions">[],
 	catalogModels: Model<"openai-completions">[],
 ): Model<"openai-completions">[] {
@@ -457,13 +461,13 @@ function mergePrimeInferenceModels(
 	return Array.from(models.values());
 }
 
-function refreshPrimeInferenceAliasLimits(
+function refreshXenonInferenceAliasLimits(
 	snapshotModels: Model<"openai-completions">[],
 	catalogModels: Model<"openai-completions">[],
 ): Model<"openai-completions">[] {
 	const liveModels = new Map(catalogModels.map((model) => [model.id.toLowerCase(), model]));
 	return snapshotModels.map((model) => {
-		const canonicalId = PRIME_INFERENCE_OPENROUTER_ALIASES[model.id.toLowerCase()];
+		const canonicalId = XENON_INFERENCE_OPENROUTER_ALIASES[model.id.toLowerCase()];
 		const canonical = canonicalId ? liveModels.get(canonicalId) : undefined;
 		if (!canonical) {
 			return model;
@@ -490,7 +494,7 @@ function includesCatalogCapability(value: unknown, capabilities: readonly string
 	});
 }
 
-function getPrimeInferenceDisplayName(modelId: string): string {
+function getXenonInferenceDisplayName(modelId: string): string {
 	const rawName = modelId.split("/").at(-1) ?? modelId;
 	return rawName
 		.split(/[-_]+/)
@@ -503,7 +507,7 @@ function getPrimeInferenceDisplayName(modelId: string): string {
 		.join(" ");
 }
 
-function getPrimeInferenceCatalogReasoning(item: Record<string, unknown>): boolean | undefined {
+function getXenonInferenceCatalogReasoning(item: Record<string, unknown>): boolean | undefined {
 	const metadata = isRecord(item.metadata) ? item.metadata : {};
 	const direct =
 		getOptionalBoolean(item.reasoning) ??
@@ -526,7 +530,7 @@ function getPrimeInferenceCatalogReasoning(item: Record<string, unknown>): boole
 		: undefined;
 }
 
-function isPrimeInferenceReasoningModel(modelId: string, catalogReasoning?: boolean): boolean {
+function isXenonInferenceReasoningModel(modelId: string, catalogReasoning?: boolean): boolean {
 	if (catalogReasoning !== undefined) {
 		return catalogReasoning;
 	}
@@ -544,30 +548,30 @@ function isPrimeInferenceReasoningModel(modelId: string, catalogReasoning?: bool
 	);
 }
 
-function getPrimeInferenceCompat(modelId: string): OpenAICompletionsCompat {
+function getXenonInferenceCompat(modelId: string): OpenAICompletionsCompat {
 	const id = modelId.toLowerCase();
 	if (id.includes("deepseek-v4")) {
 		return {
-			...PRIME_INFERENCE_COMPAT,
+			...XENON_INFERENCE_COMPAT,
 			...DEEPSEEK_V4_COMPAT,
 		};
 	}
 	if (id.startsWith("z-ai/glm-")) {
 		return {
-			...PRIME_INFERENCE_COMPAT,
+			...XENON_INFERENCE_COMPAT,
 			...ZAI_THINKING_COMPAT,
 		};
 	}
 
-	return PRIME_INFERENCE_COMPAT;
+	return XENON_INFERENCE_COMPAT;
 }
 
-function parsePrimeInferenceCatalog(data: unknown): PrimeInferenceCatalogEntry[] {
+function parseXenonInferenceCatalog(data: unknown): XenonInferenceCatalogEntry[] {
 	if (!isRecord(data) || !Array.isArray(data.data)) {
 		return [];
 	}
 
-	return data.data.flatMap((item): PrimeInferenceCatalogEntry[] => {
+	return data.data.flatMap((item): XenonInferenceCatalogEntry[] => {
 		if (!isRecord(item) || typeof item.id !== "string") {
 			return [];
 		}
@@ -587,13 +591,13 @@ function parsePrimeInferenceCatalog(data: unknown): PrimeInferenceCatalogEntry[]
 				output,
 				contextWindow: getOptionalNumber(item.context_window ?? item.contextWindow ?? limit.context),
 				maxTokens: getOptionalNumber(item.max_tokens ?? item.maxTokens ?? limit.output),
-				reasoning: getPrimeInferenceCatalogReasoning(item),
+				reasoning: getXenonInferenceCatalogReasoning(item),
 			},
 		];
 	});
 }
 
-interface PrimeInferenceOpenRouterMetadata {
+interface XenonInferenceOpenRouterMetadata {
 	contextWindow?: number;
 	maxTokens?: number;
 	vision: boolean;
@@ -602,8 +606,8 @@ interface PrimeInferenceOpenRouterMetadata {
 	supportsReasoningEffort?: boolean;
 }
 
-function buildPrimeInferenceOpenRouterIndex(catalog: unknown[]): Map<string, PrimeInferenceOpenRouterMetadata> {
-	const index = new Map<string, PrimeInferenceOpenRouterMetadata>();
+function buildXenonInferenceOpenRouterIndex(catalog: unknown[]): Map<string, XenonInferenceOpenRouterMetadata> {
+	const index = new Map<string, XenonInferenceOpenRouterMetadata>();
 	for (const item of catalog) {
 		if (!isRecord(item) || typeof item.id !== "string") {
 			continue;
@@ -632,90 +636,90 @@ function buildPrimeInferenceOpenRouterIndex(catalog: unknown[]): Map<string, Pri
 	return index;
 }
 
-function getPrimeInferenceOpenRouterMetadata(
-	index: Map<string, PrimeInferenceOpenRouterMetadata>,
+function getXenonInferenceOpenRouterMetadata(
+	index: Map<string, XenonInferenceOpenRouterMetadata>,
 	modelId: string,
-): PrimeInferenceOpenRouterMetadata | undefined {
+): XenonInferenceOpenRouterMetadata | undefined {
 	const id = modelId.toLowerCase();
-	return index.get(PRIME_INFERENCE_OPENROUTER_ALIASES[id] ?? id);
+	return index.get(XENON_INFERENCE_OPENROUTER_ALIASES[id] ?? id);
 }
 
-async function fetchPrimeInferenceModels(): Promise<Model<"openai-completions">[]> {
-	const primeConfig = readPrimeCliConfig();
-	const apiKey = getPrimeInferenceConfigValue("PRIME_API_KEY", primeConfig, ["api_key", "apiKey"]);
-	const teamId = getPrimeInferenceConfigValue("PRIME_TEAM_ID", primeConfig, ["team_id", "teamId", "teamID"]);
-	let catalog: PrimeInferenceCatalogEntry[] = [];
+async function fetchXenonInferenceModels(): Promise<Model<"openai-completions">[]> {
+	const xenonConfig = readXenonCliConfig();
+	const apiKey = getXenonInferenceConfigValue("XENON_API_KEY", xenonConfig, ["api_key", "apiKey"]);
+	const teamId = getXenonInferenceConfigValue("XENON_TEAM_ID", xenonConfig, ["team_id", "teamId", "teamID"]);
+	let catalog: XenonInferenceCatalogEntry[] = [];
 
 	try {
-		console.log("Fetching models from Prime Inference API...");
-		const response = await fetch(`${PRIME_INFERENCE_BASE_URL}/models`, {
-			headers: getPrimeInferenceHeaders(apiKey, teamId),
+		console.log("Fetching models from Xenon Inference API...");
+		const response = await fetch(`${XENON_INFERENCE_BASE_URL}/models`, {
+			headers: getXenonInferenceHeaders(apiKey, teamId),
 		});
-		catalog = parsePrimeInferenceCatalog(await response.json());
+		catalog = parseXenonInferenceCatalog(await response.json());
 	} catch (error) {
-		console.error("Failed to fetch Prime Inference models:", error);
+		console.error("Failed to fetch Xenon Inference models:", error);
 	}
 
-	let openRouterIndex = new Map<string, PrimeInferenceOpenRouterMetadata>();
+	let openRouterIndex = new Map<string, XenonInferenceOpenRouterMetadata>();
 	try {
-		openRouterIndex = buildPrimeInferenceOpenRouterIndex(await fetchOpenRouterCatalog());
+		openRouterIndex = buildXenonInferenceOpenRouterIndex(await fetchOpenRouterCatalog());
 	} catch (error) {
-		console.error("Failed to fetch OpenRouter catalog for Prime Inference metadata:", error);
+		console.error("Failed to fetch OpenRouter catalog for Xenon Inference metadata:", error);
 	}
 	if (openRouterIndex.size === 0) {
 		// Without OpenRouter metadata every model would regress to the defaults;
 		// keep the previous snapshot instead.
-		console.error("OpenRouter catalog unavailable; keeping snapshot Prime Inference models");
-		return getExistingPrimeInferenceModels();
+		console.error("OpenRouter catalog unavailable; keeping snapshot Xenon Inference models");
+		return getExistingXenonInferenceModels();
 	}
 
 	const catalogModels = catalog
-		.filter((entry) => !isPrimeInferenceRawVariant(entry.id) && !isPrimeInferencePrivateModel(entry.id))
+		.filter((entry) => !isXenonInferenceRawVariant(entry.id) && !isXenonInferencePrivateModel(entry.id))
 		.map((entry) =>
-			createPrimeInferenceModel(
+			createXenonInferenceModel(
 				entry,
-				PRIME_INFERENCE_MODEL_METADATA[entry.id.toLowerCase()],
-				getPrimeInferenceOpenRouterMetadata(openRouterIndex, entry.id),
+				XENON_INFERENCE_MODEL_METADATA[entry.id.toLowerCase()],
+				getXenonInferenceOpenRouterMetadata(openRouterIndex, entry.id),
 			),
 		);
-	let snapshotModels = getExistingPrimeInferenceModels();
+	let snapshotModels = getExistingXenonInferenceModels();
 	if (catalog.length > 0) {
 		const liveIds = new Set(catalogModels.map((model) => model.id.toLowerCase()));
 		snapshotModels = snapshotModels.filter((model) => liveIds.has(model.id.toLowerCase()));
 	}
-	snapshotModels = refreshPrimeInferenceAliasLimits(snapshotModels, catalogModels);
-	const models = mergePrimeInferenceModels(snapshotModels, catalogModels);
-	console.log(`Loaded ${models.length} Prime Inference models (${catalogModels.length} from the live catalog)`);
+	snapshotModels = refreshXenonInferenceAliasLimits(snapshotModels, catalogModels);
+	const models = mergeXenonInferenceModels(snapshotModels, catalogModels);
+	console.log(`Loaded ${models.length} Xenon Inference models (${catalogModels.length} from the live catalog)`);
 	return models;
 }
 
-function createPrimeInferenceModel(
-	entry: PrimeInferenceCatalogEntry,
-	override: PrimeInferenceModelMetadata | undefined,
-	openRouter: PrimeInferenceOpenRouterMetadata | undefined,
+function createXenonInferenceModel(
+	entry: XenonInferenceCatalogEntry,
+	override: XenonInferenceModelMetadata | undefined,
+	openRouter: XenonInferenceOpenRouterMetadata | undefined,
 ): Model<"openai-completions"> {
 	const vision = override?.vision ?? openRouter?.vision ?? false;
-	const cacheCosts = getPrimeInferenceCacheCosts(entry.id, entry.input);
+	const cacheCosts = getXenonInferenceCacheCosts(entry.id, entry.input);
 	const contextWindow =
 		entry.contextWindow ??
 		override?.contextWindow ??
 		openRouter?.contextWindow ??
-		PRIME_INFERENCE_DEFAULT_CONTEXT_WINDOW;
+		XENON_INFERENCE_DEFAULT_CONTEXT_WINDOW;
 	// Sources are independent, so an OpenRouter output cap can exceed a
 	// gateway-measured window override; clamp to keep the pair coherent.
 	const maxTokens = Math.min(
-		entry.maxTokens ?? override?.maxTokens ?? openRouter?.maxTokens ?? PRIME_INFERENCE_DEFAULT_MAX_TOKENS,
+		entry.maxTokens ?? override?.maxTokens ?? openRouter?.maxTokens ?? XENON_INFERENCE_DEFAULT_MAX_TOKENS,
 		contextWindow,
 	);
-	const compat = getPrimeInferenceCompat(entry.id);
+	const compat = getXenonInferenceCompat(entry.id);
 	return {
 		id: entry.id,
-		...(PRIME_INFERENCE_FEATURED_MODELS.has(entry.id.toLowerCase()) ? { featured: true } : {}),
-		name: override?.name ?? getPrimeInferenceDisplayName(entry.id),
+		...(XENON_INFERENCE_FEATURED_MODELS.has(entry.id.toLowerCase()) ? { featured: true } : {}),
+		name: override?.name ?? getXenonInferenceDisplayName(entry.id),
 		api: "openai-completions",
-		provider: "prime-inference",
-		baseUrl: PRIME_INFERENCE_BASE_URL,
-		reasoning: isPrimeInferenceReasoningModel(entry.id, entry.reasoning ?? openRouter?.reasoning),
+		provider: "xenon-inference",
+		baseUrl: XENON_INFERENCE_BASE_URL,
+		reasoning: isXenonInferenceReasoningModel(entry.id, entry.reasoning ?? openRouter?.reasoning),
 		...(openRouter?.thinkingLevelMap ? { thinkingLevelMap: openRouter.thinkingLevelMap } : {}),
 		input: vision ? ["text", "image"] : ["text"],
 		cost: {
@@ -2341,8 +2345,8 @@ async function generateModels() {
 	];
 	allModels.push(...vertexModels);
 
-	const primeInferenceModels = await fetchPrimeInferenceModels();
-	allModels.push(...primeInferenceModels);
+	const xenonInferenceModels = await fetchXenonInferenceModels();
+	allModels.push(...xenonInferenceModels);
 
 	const azureOpenAiModels: Model<Api>[] = allModels
 		.filter((model) => model.provider === "openai" && model.api === "openai-responses")

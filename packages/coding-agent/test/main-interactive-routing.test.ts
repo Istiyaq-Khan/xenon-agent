@@ -271,7 +271,7 @@ describe("daemon-backed interactive session manager routing", () => {
 	});
 
 	test("finds an active daemon session through a symlinked resume path", () => {
-		const directory = mkdtempSync(join(tmpdir(), "prime-agent-resume-"));
+		const directory = mkdtempSync(join(tmpdir(), "xenon-agent-resume-"));
 		try {
 			const sessionFile = join(directory, "session.jsonl");
 			const symlink = join(directory, "session-link.jsonl");

@@ -8,10 +8,10 @@ export {
 	acpToolKind,
 	acpUpdatesForSessionEvent,
 	bashToolCallId,
-	PRIME_AGENT_META_NAMESPACE,
-	primeAgentMeta,
 	runAcpMode,
 	runAcpModeWithConnection,
+	XENON_AGENT_META_NAMESPACE,
+	xenonAgentMeta,
 } from "./acp/index.js";
 export type {
 	AgentConnection,
