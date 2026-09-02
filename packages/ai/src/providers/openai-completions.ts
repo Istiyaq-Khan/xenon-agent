@@ -581,7 +581,15 @@ function createClient(
 	}
 
 	if (optionsHeaders) {
-		Object.assign(headers, optionsHeaders);
+		for (const [key, value] of Object.entries(optionsHeaders)) {
+			if (value !== undefined && value !== "") {
+				headers[key] = value;
+			}
+		}
+	}
+
+	if (isNvidiaNim && apiKey) {
+		headers.Authorization = `Bearer ${apiKey}`;
 	}
 
 	const defaultHeaders =

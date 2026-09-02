@@ -151,7 +151,7 @@ jobs:
       - name: Pack production release
         if: env.PUBLISH_PRODUCTION == 'true'
         env:
-          XENON_AGENT_DOWNLOAD_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
+          XENON_AGENT_DOWNLOAD_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL || 'https://pub-728493de92a943e2a9b2d17b4719f318.r2.dev' }}
         run: |
           test -n "$XENON_AGENT_DOWNLOAD_BASE_URL"
           npm run release:pack -- \
@@ -163,7 +163,7 @@ jobs:
       - name: Pack beta release
         if: env.PUBLISH_BETA == 'true'
         env:
-          XENON_AGENT_DOWNLOAD_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL }}
+          XENON_AGENT_DOWNLOAD_BASE_URL: ${{ vars.R2_PUBLIC_BASE_URL || 'https://pub-728493de92a943e2a9b2d17b4719f318.r2.dev' }}
         run: |
           test -n "$XENON_AGENT_DOWNLOAD_BASE_URL"
           npm run release:pack -- \

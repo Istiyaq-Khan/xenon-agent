@@ -1628,5 +1628,38 @@ describe("ModelRegistry", () => {
 				}
 			});
 		});
+
+		describe("NVIDIA NIM resolution and auth", () => {
+			test("find resolves moonshotai/kimi-k3 under nvidia-nim and alias nvidia", () => {
+				const registry = ModelRegistry.create(authStorage, modelsJsonPath);
+				const direct = registry.find("nvidia-nim", "moonshotai/kimi-k3");
+				expect(direct).toBeDefined();
+				expect(direct?.provider).toBe("nvidia-nim");
+				expect(direct?.id).toBe("moonshotai/kimi-k3");
+
+				const aliased = registry.find("nvidia", "moonshotai/kimi-k3");
+				expect(aliased).toBeDefined();
+				expect(aliased?.provider).toBe("nvidia-nim");
+				expect(aliased?.id).toBe("moonshotai/kimi-k3");
+
+				const prefixed = registry.find("nvidia-nim", "nvidia-nim/moonshotai/kimi-k3");
+				expect(prefixed).toBeDefined();
+				expect(prefixed?.id).toBe("moonshotai/kimi-k3");
+			});
+
+			test("getApiKeyAndHeaders attaches Bearer token for nvidia-nim", async () => {
+				authStorage.set("nvidia-nim", { type: "api_key", key: "nvapi-test-secret" });
+				const registry = ModelRegistry.create(authStorage, modelsJsonPath);
+				const model = registry.find("nvidia-nim", "moonshotai/kimi-k3");
+				expect(model).toBeDefined();
+
+				const auth = await registry.getApiKeyAndHeaders(model!);
+				expect(auth).toEqual({
+					ok: true,
+					apiKey: "nvapi-test-secret",
+					headers: { Authorization: "Bearer nvapi-test-secret" },
+				});
+			});
+		});
 	});
 });

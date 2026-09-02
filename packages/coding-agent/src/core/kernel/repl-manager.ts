@@ -259,6 +259,7 @@ export class ReplKernelManager {
 				XENON_AGENT_KERNEL_OWNER_PID: String(process.pid),
 			},
 			stdio: ["pipe", "pipe", "pipe"],
+			windowsHide: true,
 		});
 		this.child = child;
 		if (child.pid !== undefined) recordOrphanProcessState(child.pid, true);

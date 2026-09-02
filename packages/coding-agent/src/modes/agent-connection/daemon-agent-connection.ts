@@ -332,7 +332,7 @@ export class DaemonAgentConnection implements AgentConnection {
 				...(this.options.ownedSession ? (["client_owned_sessions"] as const) : []),
 			],
 			env: this.options.sendClientEnv ? collectDaemonClientEnv() : undefined,
-			launchEnv: this.options.ownedSession ? collectDaemonLaunchEnv() : undefined,
+			launchEnv: collectDaemonLaunchEnv(),
 			...(this.options.ownedSession &&
 			this.options.ownedSessionRecoveryConfig &&
 			this.client.supportsServerCapability("owned_session_recovery_context")
@@ -1287,7 +1287,7 @@ export class DaemonAgentConnection implements AgentConnection {
 					...(this.options.ownedSession ? (["client_owned_sessions"] as const) : []),
 				],
 				env: this.options.sendClientEnv ? collectDaemonClientEnv() : undefined,
-				launchEnv: this.options.ownedSession ? collectDaemonLaunchEnv() : undefined,
+				launchEnv: collectDaemonLaunchEnv(),
 				telemetryDisabled: this.options.telemetryDisabled,
 			});
 			reattached = true;

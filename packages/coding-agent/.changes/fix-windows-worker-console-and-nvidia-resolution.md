@@ -1,0 +1,2 @@
+- Fixed flashing console subprocess spawns on Windows by ensuring windowsHide is set across all child process callers.
+- Fixed NVIDIA NIM model resolution and credential synchronization across daemon session workers.

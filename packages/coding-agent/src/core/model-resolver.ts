@@ -3,7 +3,14 @@
  */
 
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
-import { type Api, getLogger, type KnownProvider, type Model, modelsAreEqual } from "@earendil-works/pi-ai";
+import {
+	type Api,
+	getLogger,
+	type KnownProvider,
+	type Model,
+	modelsAreEqual,
+	normalizeProviderId,
+} from "@earendil-works/pi-ai";
 import chalk from "chalk";
 import { minimatch } from "minimatch";
 import { isValidThinkingLevel } from "../cli/args.js";
@@ -81,9 +88,11 @@ export function findExactModelReferenceMatch(
 
 	const normalizedReference = trimmedReference.toLowerCase();
 
-	const canonicalMatches = availableModels.filter(
-		(model) => `${model.provider}/${model.id}`.toLowerCase() === normalizedReference,
-	);
+	const canonicalMatches = availableModels.filter((model) => {
+		const full = `${model.provider}/${model.id}`.toLowerCase();
+		const canonicalFull = `${normalizeProviderId(model.provider)}/${model.id}`.toLowerCase();
+		return full === normalizedReference || canonicalFull === normalizedReference;
+	});
 	if (canonicalMatches.length === 1) {
 		return canonicalMatches[0];
 	}
@@ -96,10 +105,13 @@ export function findExactModelReferenceMatch(
 		const provider = trimmedReference.substring(0, slashIndex).trim();
 		const modelId = trimmedReference.substring(slashIndex + 1).trim();
 		if (provider && modelId) {
+			const canonicalProvider = normalizeProviderId(provider).toLowerCase();
 			const providerMatches = availableModels.filter(
 				(model) =>
-					model.provider.toLowerCase() === provider.toLowerCase() &&
-					model.id.toLowerCase() === modelId.toLowerCase(),
+					(model.provider.toLowerCase() === provider.toLowerCase() ||
+						normalizeProviderId(model.provider).toLowerCase() === canonicalProvider) &&
+					(model.id.toLowerCase() === modelId.toLowerCase() ||
+						model.id.toLowerCase() === `${canonicalProvider}/${modelId.toLowerCase()}`),
 			);
 			if (providerMatches.length === 1) {
 				return providerMatches[0];
@@ -152,19 +164,45 @@ interface ParsedModelResult {
 }
 
 function buildFallbackModel(provider: string, modelId: string, availableModels: Model<Api>[]): Model<Api> | undefined {
-	const providerModels = availableModels.filter((m) => m.provider === provider);
-	if (providerModels.length === 0) return undefined;
+	const canonicalProvider = normalizeProviderId(provider);
+	const cleanModelId = modelId.startsWith(`${canonicalProvider}/`)
+		? modelId.slice(canonicalProvider.length + 1)
+		: modelId.startsWith(`${provider}/`)
+			? modelId.slice(provider.length + 1)
+			: modelId;
 
-	const defaultId = defaultModelPerProvider[provider as KnownProvider];
-	const baseModel = defaultId
-		? (providerModels.find((m) => m.id === defaultId) ?? providerModels[0])
-		: providerModels[0];
+	const providerModels = availableModels.filter(
+		(m) => m.provider === provider || normalizeProviderId(m.provider) === canonicalProvider,
+	);
+	if (providerModels.length > 0) {
+		const defaultId = defaultModelPerProvider[canonicalProvider as KnownProvider];
+		const baseModel = defaultId
+			? (providerModels.find((m) => m.id === defaultId) ?? providerModels[0])
+			: providerModels[0];
 
-	return {
-		...baseModel,
-		id: modelId,
-		name: modelId,
-	};
+		return {
+			...baseModel,
+			id: cleanModelId,
+			name: cleanModelId,
+		};
+	}
+
+	if (canonicalProvider === "nvidia-nim") {
+		return {
+			id: cleanModelId,
+			name: cleanModelId,
+			api: "openai-completions",
+			provider: "nvidia-nim",
+			baseUrl: "https://integrate.api.nvidia.com/v1",
+			reasoning: false,
+			input: ["text", "image"],
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+			contextWindow: 128000,
+			maxTokens: 16384,
+		};
+	}
+
+	return undefined;
 }
 
 function findPreferredDefaultModel(availableModels: Model<Api>[]): Model<Api> | undefined {
@@ -354,9 +392,16 @@ export function resolveCliModel(options: {
 	const providerMap = new Map<string, string>();
 	for (const m of availableModels) {
 		providerMap.set(m.provider.toLowerCase(), m.provider);
+		providerMap.set(normalizeProviderId(m.provider).toLowerCase(), m.provider);
 	}
+	providerMap.set("nvidia", "nvidia-nim");
+	providerMap.set("nvidia-nim", "nvidia-nim");
+	providerMap.set("nvidia nim", "nvidia-nim");
+	providerMap.set("nvidia_nim", "nvidia-nim");
 
-	let provider = cliProvider ? providerMap.get(cliProvider.toLowerCase()) : undefined;
+	let provider = cliProvider
+		? (providerMap.get(cliProvider.toLowerCase()) ?? normalizeProviderId(cliProvider))
+		: undefined;
 	if (cliProvider && !provider) {
 		return {
 			model: undefined,
@@ -406,7 +451,12 @@ export function resolveCliModel(options: {
 		}
 	}
 
-	const candidates = provider ? availableModels.filter((m) => m.provider === provider) : availableModels;
+	const canonicalProvider = provider ? normalizeProviderId(provider) : undefined;
+	const candidates = canonicalProvider
+		? availableModels.filter(
+				(m) => m.provider === canonicalProvider || normalizeProviderId(m.provider) === canonicalProvider,
+			)
+		: availableModels;
 	const { model, thinkingLevel, warning } = parseModelPattern(pattern, candidates, {
 		allowInvalidThinkingLevelFallback: false,
 	});
@@ -441,6 +491,10 @@ export function resolveCliModel(options: {
 	}
 
 	if (provider) {
+		const registered = modelRegistry.find?.(provider, pattern);
+		if (registered) {
+			return { model: registered, thinkingLevel: undefined, warning, error: undefined };
+		}
 		const fallbackModel = buildFallbackModel(provider, pattern, availableModels);
 		if (fallbackModel) {
 			const fallbackWarning = warning

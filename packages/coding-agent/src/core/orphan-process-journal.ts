@@ -157,6 +157,7 @@ export function killOrphanProcess(pid: number): boolean {
 				stdio: "ignore",
 				timeout: 10_000,
 				env: { ...process.env, NoDefaultCurrentDirectoryInExePath: "1" },
+				windowsHide: true,
 			},
 		);
 		return result.status === 0;

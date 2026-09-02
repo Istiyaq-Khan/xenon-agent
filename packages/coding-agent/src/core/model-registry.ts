@@ -13,6 +13,7 @@ import {
 	getProviders,
 	type KnownProvider,
 	type Model,
+	normalizeProviderId,
 	type OAuthProviderInterface,
 	type OpenAICompletionsCompat,
 	type OpenAIResponsesCompat,
@@ -893,20 +894,37 @@ export class ModelRegistry {
 	 * Find a model by provider and ID.
 	 */
 	find(provider: string, modelId: string): Model<Api> | undefined {
-		const direct = this.models.find((m) => m.provider === provider && m.id === modelId);
+		const canonicalProvider = normalizeProviderId(provider);
+		const cleanModelId = modelId.startsWith(`${canonicalProvider}/`)
+			? modelId.slice(canonicalProvider.length + 1)
+			: modelId.startsWith(`${provider}/`)
+				? modelId.slice(provider.length + 1)
+				: modelId;
+
+		const direct = this.models.find(
+			(m) =>
+				(normalizeProviderId(m.provider) === canonicalProvider || m.provider === provider) &&
+				(m.id === cleanModelId || m.id === modelId || m.id.toLowerCase() === cleanModelId.toLowerCase()),
+		);
 		if (direct) {
 			return direct;
 		}
-		const providerConfig = this.providerRequestConfigs.get(provider);
-		const providerModel = this.models.find((m) => m.provider === provider);
-		if (providerConfig?.baseUrl || providerModel) {
+		const providerConfig =
+			this.providerRequestConfigs.get(canonicalProvider) ?? this.providerRequestConfigs.get(provider);
+		const providerModel = this.models.find(
+			(m) => normalizeProviderId(m.provider) === canonicalProvider || m.provider === provider,
+		);
+		if (providerConfig?.baseUrl || providerModel || canonicalProvider === "nvidia-nim") {
 			const api = (providerConfig?.api ?? providerModel?.api ?? "openai-completions") as Api;
-			const baseUrl = providerConfig?.baseUrl ?? providerModel?.baseUrl ?? "";
+			const baseUrl =
+				providerConfig?.baseUrl ??
+				providerModel?.baseUrl ??
+				(canonicalProvider === "nvidia-nim" ? "https://integrate.api.nvidia.com/v1" : "");
 			return {
-				id: modelId,
-				name: modelId,
+				id: cleanModelId,
+				name: cleanModelId,
 				api,
-				provider,
+				provider: canonicalProvider,
 				baseUrl,
 				reasoning: false,
 				input: ["text", "image"],
@@ -922,7 +940,13 @@ export class ModelRegistry {
 	 * Get API key for a model.
 	 */
 	hasConfiguredAuth(model: Model<Api>): boolean {
-		return this.authStorage.hasAuth(model.provider) || this.hasConfiguredProviderRequestAuth(model.provider);
+		const canonical = normalizeProviderId(model.provider);
+		return (
+			this.authStorage.hasAuth(canonical) ||
+			this.authStorage.hasAuth(model.provider) ||
+			this.hasConfiguredProviderRequestAuth(canonical) ||
+			this.hasConfiguredProviderRequestAuth(model.provider)
+		);
 	}
 
 	private fingerprintProviderRequestAuthSource(source: ProviderRequestAuthSource["source"], material: string): string {
@@ -1200,10 +1224,16 @@ export class ModelRegistry {
 	 */
 	async getApiKeyAndHeaders(model: Model<Api>): Promise<ResolvedRequestAuth> {
 		try {
-			const providerConfig = this.providerRequestConfigs.get(model.provider);
-			const authStorageAuth = await this.authStorage.getApiKeyWithSourceToken(model.provider, {
-				includeFallback: false,
-			});
+			const canonicalProvider = normalizeProviderId(model.provider);
+			const providerConfig =
+				this.providerRequestConfigs.get(canonicalProvider) ?? this.providerRequestConfigs.get(model.provider);
+			const authStorageAuth =
+				(await this.authStorage.getApiKeyWithSourceToken(canonicalProvider, {
+					includeFallback: false,
+				})) ||
+				(await this.authStorage.getApiKeyWithSourceToken(model.provider, {
+					includeFallback: false,
+				}));
 			let apiKey = authStorageAuth.apiKey;
 			let authSourceToken = authStorageAuth.sourceToken;
 			if (apiKey === undefined && providerConfig?.apiKey) {
@@ -1235,7 +1265,7 @@ export class ModelRegistry {
 					? { ...model.headers, ...authStorageHeaders, ...providerHeaders, ...modelHeaders }
 					: undefined;
 
-			if (providerConfig?.authHeader) {
+			if (providerConfig?.authHeader || canonicalProvider === "nvidia-nim") {
 				if (!apiKey) {
 					return { ok: false, error: `No API key found for "${model.provider}"` };
 				}

@@ -4540,9 +4540,15 @@ export class AgentDaemon {
 				const state = this.getSessionState(command.activeSessionId);
 				const session = state.runtime.session;
 				const availableModels = await session.modelRegistry.refreshAvailableModels();
-				const model = availableModels.find((candidate) => {
+				let model = availableModels.find((candidate) => {
 					return candidate.provider === command.provider && candidate.id === command.modelId;
 				});
+				if (!model) {
+					const found = session.modelRegistry.find(command.provider, command.modelId);
+					if (found && (await session.modelRegistry.canUseModel(found))) {
+						model = found;
+					}
+				}
 				if (!model) {
 					throw new Error(`Model not found: ${command.provider}/${command.modelId}`);
 				}

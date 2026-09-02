@@ -1,0 +1,1 @@
+- Fixed NVIDIA NIM model lookup, provider normalization, and auth header transmission.

@@ -1,3 +1,4 @@
+import { normalizeProviderId } from "./env-api-keys.js";
 import { MODELS } from "./models.generated.js";
 import type { Api, KnownProvider, Model, ModelThinkingLevel, Usage } from "./types.js";
 
@@ -20,8 +21,27 @@ export function getModel<TProvider extends KnownProvider, TModelId extends keyof
 	provider: TProvider,
 	modelId: TModelId,
 ): Model<ModelApi<TProvider, TModelId>> {
-	const providerModels = modelRegistry.get(provider);
-	return providerModels?.get(modelId as string) as Model<ModelApi<TProvider, TModelId>>;
+	const canonical = normalizeProviderId(provider);
+	const providerModels = modelRegistry.get(provider) ?? modelRegistry.get(canonical);
+	const direct = providerModels?.get(modelId as string);
+	if (direct) {
+		return direct as Model<ModelApi<TProvider, TModelId>>;
+	}
+	if (canonical === "nvidia-nim") {
+		return {
+			id: modelId as string,
+			name: modelId as string,
+			api: "openai-completions",
+			provider: "nvidia-nim",
+			baseUrl: "https://integrate.api.nvidia.com/v1",
+			reasoning: false,
+			input: ["text", "image"],
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+			contextWindow: 128000,
+			maxTokens: 16384,
+		} as unknown as Model<ModelApi<TProvider, TModelId>>;
+	}
+	return undefined as unknown as Model<ModelApi<TProvider, TModelId>>;
 }
 
 export function getProviders(): KnownProvider[] {
@@ -31,7 +51,8 @@ export function getProviders(): KnownProvider[] {
 export function getModels<TProvider extends KnownProvider>(
 	provider: TProvider,
 ): Model<ModelApi<TProvider, keyof (typeof MODELS)[TProvider]>>[] {
-	const models = modelRegistry.get(provider);
+	const canonical = normalizeProviderId(provider);
+	const models = modelRegistry.get(provider) ?? modelRegistry.get(canonical);
 	return models ? (Array.from(models.values()) as Model<ModelApi<TProvider, keyof (typeof MODELS)[TProvider]>>[]) : [];
 }
 
