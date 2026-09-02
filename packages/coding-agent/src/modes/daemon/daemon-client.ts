@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import { createConnection, type Socket } from "node:net";
 import { getDaemonLogPath } from "../../config.js";
 import { attachJsonlLineReader, serializeJsonLine } from "../rpc/jsonl.js";
@@ -52,6 +53,25 @@ interface PendingDaemonRequest {
 
 function daemonEndpointDetails(socketPath: string): string {
 	return `Socket: ${socketPath}. Daemon log: ${getDaemonLogPath(socketPath)}.`;
+}
+
+function printRecentDaemonLogs(socketPath: string, lineCount = 20): void {
+	try {
+		const logPath = getDaemonLogPath(socketPath);
+		if (!existsSync(logPath)) {
+			return;
+		}
+		const content = readFileSync(logPath, "utf8");
+		const lines = content.trim().split(/\r?\n/).filter(Boolean);
+		const tail = lines.slice(-lineCount).join("\n");
+		if (tail) {
+			console.error(`\n--- Recent Xenon Agent daemon logs (${logPath}) ---`);
+			console.error(tail);
+			console.error(`--- End of daemon logs ---\n`);
+		}
+	} catch {
+		// Best effort: missing or unreadable log files should not prevent error handling.
+	}
 }
 
 export class DaemonSocketClosedError extends Error {
@@ -155,6 +175,7 @@ export class DaemonClient {
 				reject,
 				timeout: setTimeout(() => {
 					this.helloWaiters.delete(waiter);
+					printRecentDaemonLogs(this.socketPath);
 					reject(
 						new Error(
 							`Timed out after ${timeoutMs}ms waiting for the Xenon Agent daemon handshake. ${daemonEndpointDetails(this.socketPath)}`,
@@ -181,6 +202,7 @@ export class DaemonClient {
 				cleanup();
 				this.clearSocketReference(socket);
 				socket.destroy();
+				printRecentDaemonLogs(this.socketPath);
 				reject(
 					new Error(
 						`Timed out after ${timeoutMs}ms connecting to the Xenon Agent daemon. ${daemonEndpointDetails(this.socketPath)}`,
@@ -199,6 +221,7 @@ export class DaemonClient {
 			const onError = (error: Error) => {
 				cleanup();
 				this.clearSocketReference(socket);
+				printRecentDaemonLogs(this.socketPath);
 				reject(
 					new Error(
 						`Failed to connect to the Xenon Agent daemon: ${error.message}. ${daemonEndpointDetails(this.socketPath)}`,
@@ -388,6 +411,7 @@ export class DaemonClient {
 	private armPendingRequestTimeout(id: string, pending: PendingDaemonRequest): void {
 		pending.timeout = setTimeout(() => {
 			this.pendingRequests.delete(id);
+			printRecentDaemonLogs(this.socketPath);
 			pending.reject(
 				new Error(
 					`Timed out after ${pending.timeoutMs}ms waiting for the Xenon Agent daemon response to "${pending.commandType}". ${daemonEndpointDetails(this.socketPath)}`,
@@ -541,6 +565,9 @@ export class DaemonClient {
 			return;
 		}
 		this.clearSocketReference(socket);
+		if (this.pendingRequests.size > 0 || this.helloWaiters.size > 0) {
+			printRecentDaemonLogs(this.socketPath);
+		}
 		this.rejectAll(error, this.requestRecoveryEnabled);
 		for (const listener of [...this.closeListeners]) {
 			listener(error);
