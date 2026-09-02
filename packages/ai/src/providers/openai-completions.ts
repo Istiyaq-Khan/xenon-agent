@@ -518,15 +518,30 @@ function createClient(
 	compat: ResolvedOpenAICompletionsCompat = getCompat(model),
 ) {
 	if (!apiKey) {
-		if (!process.env.OPENAI_API_KEY) {
+		const envKey = getEnvApiKey(model.provider);
+		if (envKey) {
+			apiKey = envKey;
+		} else if (!process.env.OPENAI_API_KEY) {
 			throw new Error(
-				"OpenAI API key is required. Set OPENAI_API_KEY environment variable or pass it as an argument.",
+				`${model.provider} API key is required. Set ${model.provider === "nvidia-nim" ? "NVIDIA_API_KEY" : "OPENAI_API_KEY"} environment variable or pass it as an argument.`,
 			);
+		} else {
+			apiKey = process.env.OPENAI_API_KEY;
 		}
-		apiKey = process.env.OPENAI_API_KEY;
 	}
 
+	apiKey = apiKey
+		.trim()
+		.replace(/^["']|["']$/g, "")
+		.trim();
+
 	const headers = { ...model.headers };
+	if (model.provider === "nvidia-nim" || model.provider === "nvidia" || model.baseUrl.includes("api.nvidia.com")) {
+		headers.Accept = "text/event-stream";
+		headers["Content-Type"] = "application/json";
+		headers.Authorization = `Bearer ${apiKey}`;
+	}
+
 	if (model.provider === "github-copilot") {
 		const hasImages = hasCopilotVisionInput(context.messages);
 		const copilotHeaders = buildCopilotDynamicHeaders({

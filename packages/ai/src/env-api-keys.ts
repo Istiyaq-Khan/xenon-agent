@@ -100,7 +100,7 @@ function getApiKeyEnvVars(provider: string): readonly string[] | undefined {
 	}
 
 	if (provider === "nvidia" || provider === "nvidia-nim") {
-		return ["NVIDIA_API_KEY"];
+		return ["NVIDIA_API_KEY", "NVIDIA_NIM_API_KEY"];
 	}
 
 	const envMap: Record<string, string> = {

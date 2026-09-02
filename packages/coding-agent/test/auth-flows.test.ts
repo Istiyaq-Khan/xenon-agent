@@ -114,7 +114,7 @@ describe("ProviderAuthFlows", () => {
 
 		expect(overlays).toHaveLength(1);
 		const output = stripAnsi(overlays[0]?.render(80).join("\n") ?? "");
-		expect(output).toContain("nvidia");
+		expect(output).toContain("nvidia-nim");
 		overlays[0]?.handleInput?.("\x1b");
 		await expect(logoutResult).resolves.toBeNull();
 	});

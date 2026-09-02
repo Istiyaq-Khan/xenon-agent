@@ -1105,7 +1105,7 @@ describe("openai-completions tool_choice", () => {
 	});
 
 	it("distinguishes omitted reasoning from explicit off for effort models", async () => {
-		const baseModel = getModel("nvidia", "moonshotai/kimi-k3")!;
+		const baseModel = getModel("nvidia-nim", "moonshotai/kimi-k3");
 		const model = {
 			...baseModel,
 			compat: { ...baseModel.compat, supportsReasoningEffort: true },

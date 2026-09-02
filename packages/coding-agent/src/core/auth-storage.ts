@@ -332,8 +332,21 @@ export class AuthStorage {
 		return `oauth:${apiKey}\0${credential.refresh}\0${credential.expires}`;
 	}
 
+	private getStoredCredential(provider: string): AuthCredential | undefined {
+		if (provider === "nvidia-nim" || provider === "nvidia" || provider === "NVIDIA NIM") {
+			return this.data["nvidia-nim"] ?? this.data.nvidia ?? this.data["NVIDIA NIM"];
+		}
+		return this.data[provider];
+	}
+
 	private getRuntimeAuthCandidate(provider: string): AuthSourceCandidate | undefined {
-		const apiKey = this.runtimeOverrides.get(provider);
+		let apiKey = this.runtimeOverrides.get(provider);
+		if (!apiKey && (provider === "nvidia-nim" || provider === "nvidia" || provider === "NVIDIA NIM")) {
+			apiKey =
+				this.runtimeOverrides.get("nvidia-nim") ??
+				this.runtimeOverrides.get("nvidia") ??
+				this.runtimeOverrides.get("NVIDIA NIM");
+		}
 		if (!apiKey) {
 			return undefined;
 		}
@@ -352,7 +365,7 @@ export class AuthStorage {
 		provider: string,
 		options?: { resolveCommandValue?: boolean; resolvedCommandValue?: string },
 	): AuthSourceCandidate | undefined {
-		const credential = this.data[provider];
+		const credential = this.getStoredCredential(provider);
 		if (!credential) {
 			return undefined;
 		}
@@ -613,25 +626,30 @@ export class AuthStorage {
 	 * Get credential for a provider.
 	 */
 	get(provider: string): AuthCredential | undefined {
-		return this.data[provider] ?? undefined;
+		return this.getStoredCredential(provider);
 	}
 
 	/**
 	 * Set credential for a provider.
 	 */
 	set(provider: string, credential: AuthCredential): void {
-		this.clearStaleAuthSource(provider, "stored");
-		this.data[provider] = credential;
-		this.persistProviderChange(provider, credential);
+		const targetProvider = provider === "nvidia" || provider === "NVIDIA NIM" ? "nvidia-nim" : provider;
+		if (credential.type === "api_key" && typeof credential.key === "string") {
+			credential = { ...credential, key: credential.key.trim() };
+		}
+		this.clearStaleAuthSource(targetProvider, "stored");
+		this.data[targetProvider] = credential;
+		this.persistProviderChange(targetProvider, credential);
 	}
 
 	/**
 	 * Remove credential for a provider.
 	 */
 	remove(provider: string): void {
-		this.clearStaleAuthSource(provider, "stored");
-		delete this.data[provider];
-		this.persistProviderChange(provider, undefined);
+		const targetProvider = provider === "nvidia" || provider === "NVIDIA NIM" ? "nvidia-nim" : provider;
+		this.clearStaleAuthSource(targetProvider, "stored");
+		delete this.data[targetProvider];
+		this.persistProviderChange(targetProvider, undefined);
 	}
 
 	/**
@@ -641,16 +659,17 @@ export class AuthStorage {
 	 * and idempotent — in-memory state is only updated after the write succeeds.
 	 */
 	removeVerified(provider: string): void {
+		const targetProvider = provider === "nvidia" || provider === "NVIDIA NIM" ? "nvidia-nim" : provider;
 		this.storage.withLock((current) => {
 			const currentData = this.parseStorageData(current);
-			if (!(provider in currentData)) return { result: undefined };
+			if (!(targetProvider in currentData)) return { result: undefined };
 			const merged: AuthStorageData = { ...currentData };
-			delete merged[provider];
+			delete merged[targetProvider];
 			return { result: undefined, next: JSON.stringify(merged, null, 2) };
 		});
-		delete this.data[provider];
+		delete this.data[targetProvider];
 		// Post-success only: a failed removal must not make a stale-marked credential selectable again.
-		this.clearStaleAuthSource(provider, "stored");
+		this.clearStaleAuthSource(targetProvider, "stored");
 	}
 
 	/**
@@ -664,7 +683,7 @@ export class AuthStorage {
 	 * Check if credentials exist for a provider in auth.json.
 	 */
 	has(provider: string): boolean {
-		return provider in this.data;
+		return this.getStoredCredential(provider) !== undefined;
 	}
 
 	/**
@@ -779,7 +798,13 @@ export class AuthStorage {
 	): Promise<AuthApiKeyResult> {
 		// Runtime overrides take precedence over stored credentials and environment keys.
 		const runtimeCandidate = this.getRuntimeAuthCandidate(providerId);
-		const runtimeKey = this.runtimeOverrides.get(providerId);
+		let runtimeKey = this.runtimeOverrides.get(providerId);
+		if (!runtimeKey && (providerId === "nvidia-nim" || providerId === "nvidia" || providerId === "NVIDIA NIM")) {
+			runtimeKey =
+				this.runtimeOverrides.get("nvidia-nim") ??
+				this.runtimeOverrides.get("nvidia") ??
+				this.runtimeOverrides.get("NVIDIA NIM");
+		}
 		if (runtimeKey && runtimeCandidate && !this.isAuthSourceStale(providerId, runtimeCandidate)) {
 			return {
 				apiKey: runtimeKey,
@@ -787,7 +812,7 @@ export class AuthStorage {
 			};
 		}
 
-		const cred = this.data[providerId];
+		const cred = this.getStoredCredential(providerId);
 
 		if (cred?.type === "api_key") {
 			const storedCandidate = this.getStoredAuthCandidate(providerId);

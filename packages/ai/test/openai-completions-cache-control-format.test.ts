@@ -190,7 +190,7 @@ describe("openai-completions cacheControlFormat", () => {
 	});
 
 	it("does not apply Anthropic-style cache markers to NVIDIA NIM models", async () => {
-		const model = getModel("nvidia", "meta/llama-3.3-70b-instruct");
+		const model = getModel("nvidia-nim", "meta/llama-3.3-70b-instruct");
 		const params = await capturePayload(model);
 		expectNoAnthropicCacheMarkers(params);
 	});

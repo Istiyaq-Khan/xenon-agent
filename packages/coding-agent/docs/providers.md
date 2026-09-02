@@ -51,7 +51,7 @@ xenon
 | Anthropic | `ANTHROPIC_API_KEY` | `anthropic` |
 | Azure OpenAI Responses | `AZURE_OPENAI_API_KEY` | `azure-openai-responses` |
 | OpenAI | `OPENAI_API_KEY` | `openai` |
-| NVIDIA NIM | `NVIDIA_API_KEY` | `nvidia` |
+| NVIDIA NIM | `NVIDIA_API_KEY` / `NVIDIA_NIM_API_KEY` | `nvidia-nim` |
 | DeepSeek | `DEEPSEEK_API_KEY` | `deepseek` |
 | Google Gemini | `GEMINI_API_KEY` | `google` |
 | Mistral | `MISTRAL_API_KEY` | `mistral` |
@@ -85,7 +85,7 @@ Store credentials in `~/.xenon-agent/auth.json`:
 {
   "anthropic": { "type": "api_key", "key": "sk-ant-..." },
   "openai": { "type": "api_key", "key": "sk-..." },
-  "nvidia": { "type": "api_key", "key": "nvapi-..." },
+  "nvidia-nim": { "type": "api_key", "key": "nvapi-..." },
   "deepseek": { "type": "api_key", "key": "sk-..." },
   "google": { "type": "api_key", "key": "..." },
   "opencode": { "type": "api_key", "key": "..." },

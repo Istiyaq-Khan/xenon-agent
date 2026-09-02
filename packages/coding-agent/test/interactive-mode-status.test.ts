@@ -3334,7 +3334,7 @@ describe("InteractiveMode Xenon CLI onboarding", () => {
 		id: "meta/llama-3.3-70b-instruct",
 		name: "Llama 3.3 70B Instruct",
 		api: "openai-completions",
-		provider: "nvidia",
+		provider: "nvidia-nim",
 		baseUrl: "https://integrate.api.nvidia.com/v1",
 		reasoning: false,
 		input: ["text"],
@@ -4041,7 +4041,7 @@ describe("InteractiveMode Xenon CLI onboarding", () => {
 		fakeThis.showOnboardingSplash = vi.fn(async () => ({ showProgress: vi.fn(), dismiss }));
 		const runLogin = vi.fn(async () => ({
 			status: "success" as const,
-			providerId: "nvidia",
+			providerId: "nvidia-nim",
 			providerName: "NVIDIA NIM",
 			authType: "api_key" as const,
 			kind: "provider" as const,
@@ -4076,7 +4076,7 @@ describe("InteractiveMode post-login model preparation", () => {
 		id: "meta/llama-3.3-70b-instruct",
 		name: "Llama 3.3 70B Instruct",
 		api: "openai-completions",
-		provider: "nvidia",
+		provider: "nvidia-nim",
 		baseUrl: "https://integrate.api.nvidia.com/v1",
 		reasoning: false,
 		input: ["text"],
@@ -4100,7 +4100,7 @@ describe("InteractiveMode post-login model preparation", () => {
 		await expect(
 			prepareForModelSelectionAfterLogin.call(fakeThis, {
 				status: "success",
-				providerId: "nvidia",
+				providerId: "nvidia-nim",
 				providerName: "NVIDIA NIM",
 				authType: "api_key",
 				kind: "provider",

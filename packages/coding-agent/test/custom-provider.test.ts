@@ -30,7 +30,6 @@ describe("Custom Provider and NVIDIA NIM integration", () => {
 	it("registers NVIDIA NIM in display names and default model resolver", () => {
 		expect(BUILT_IN_PROVIDER_DISPLAY_NAMES.nvidia).toBe("NVIDIA NIM");
 		expect(BUILT_IN_PROVIDER_DISPLAY_NAMES["nvidia-nim"]).toBe("NVIDIA NIM");
-		expect(defaultModelPerProvider.nvidia).toBe("meta/llama-3.3-70b-instruct");
 		expect(defaultModelPerProvider["nvidia-nim"]).toBe("meta/llama-3.3-70b-instruct");
 	});
 
@@ -94,5 +93,47 @@ describe("Custom Provider and NVIDIA NIM integration", () => {
 		expect(model?.api).toBe("anthropic-messages");
 		expect(model?.baseUrl).toBe("https://anthropic.corp.internal/v1");
 		expect(model?.contextWindow).toBe(200000);
+	});
+
+	it("canonicalizes nvidia-nim in authStorage, trims keys, and supports backwards-compatible aliasing", async () => {
+		const authStorage = AuthStorage.create(authJsonPath);
+
+		// Test trimming and canonicalization
+		authStorage.set("NVIDIA NIM", { type: "api_key", key: "  nvapi-test-key-123\n\n" });
+		expect(authStorage.get("nvidia-nim")).toEqual({ type: "api_key", key: "nvapi-test-key-123" });
+		expect(authStorage.get("nvidia")).toEqual({ type: "api_key", key: "nvapi-test-key-123" });
+		expect(await authStorage.getApiKey("nvidia-nim")).toBe("nvapi-test-key-123");
+
+		// Test reading legacy auth.json written as "nvidia"
+		writeFileSync(
+			authJsonPath,
+			JSON.stringify({
+				nvidia: { type: "api_key", key: "legacy-nv-key" },
+			}),
+		);
+		const reloadedAuth = AuthStorage.create(authJsonPath);
+		expect(reloadedAuth.get("nvidia-nim")).toEqual({ type: "api_key", key: "legacy-nv-key" });
+		expect(await reloadedAuth.getApiKey("nvidia-nim")).toBe("legacy-nv-key");
+	});
+
+	it("resolves NVIDIA NIM API keys from NVIDIA_API_KEY and NVIDIA_NIM_API_KEY", async () => {
+		const authStorage = AuthStorage.create(authJsonPath);
+		const savedKey1 = process.env.NVIDIA_API_KEY;
+		const savedKey2 = process.env.NVIDIA_NIM_API_KEY;
+		delete process.env.NVIDIA_API_KEY;
+		delete process.env.NVIDIA_NIM_API_KEY;
+
+		try {
+			process.env.NVIDIA_NIM_API_KEY = "nim-env-key";
+			expect(await authStorage.getApiKey("nvidia-nim")).toBe("nim-env-key");
+
+			process.env.NVIDIA_API_KEY = "nvidia-primary-env-key";
+			expect(await authStorage.getApiKey("nvidia-nim")).toBe("nvidia-primary-env-key");
+		} finally {
+			if (savedKey1 !== undefined) process.env.NVIDIA_API_KEY = savedKey1;
+			else delete process.env.NVIDIA_API_KEY;
+			if (savedKey2 !== undefined) process.env.NVIDIA_NIM_API_KEY = savedKey2;
+			else delete process.env.NVIDIA_NIM_API_KEY;
+		}
 	});
 });

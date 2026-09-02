@@ -14,7 +14,7 @@ afterEach(() => {
 
 describe("NVIDIA NIM models", () => {
 	it("registers the NVIDIA NIM catalog", () => {
-		const models = getModels("nvidia");
+		const models = getModels("nvidia-nim");
 		const modelIds = models.map((model) => model.id);
 
 		expect(modelIds.length).toBeGreaterThanOrEqual(9);
@@ -38,34 +38,38 @@ describe("NVIDIA NIM models", () => {
 		}
 	});
 
-	it("registers alias models under nvidia-nim", () => {
-		const aliasModels = getModels("nvidia-nim");
-		expect(aliasModels.length).toBeGreaterThanOrEqual(9);
-		expect(aliasModels[0].provider).toBe("nvidia-nim");
+	it("registers models under nvidia-nim", () => {
+		const models = getModels("nvidia-nim");
+		expect(models.length).toBeGreaterThanOrEqual(9);
+		expect(models[0].provider).toBe("nvidia-nim");
 	});
 
-	it("resolves NVIDIA_API_KEY from environment", () => {
+	it("resolves NVIDIA_API_KEY and NVIDIA_NIM_API_KEY from environment", () => {
 		process.env.NVIDIA_API_KEY = "test-nvidia-key";
-
-		expect(findEnvKeys("nvidia")).toEqual(["NVIDIA_API_KEY"]);
-		expect(getEnvApiKey("nvidia")).toBe("test-nvidia-key");
 
 		expect(findEnvKeys("nvidia-nim")).toEqual(["NVIDIA_API_KEY"]);
 		expect(getEnvApiKey("nvidia-nim")).toBe("test-nvidia-key");
+
+		delete process.env.NVIDIA_API_KEY;
+		process.env.NVIDIA_NIM_API_KEY = "test-nim-key";
+		expect(findEnvKeys("nvidia-nim")).toEqual(["NVIDIA_NIM_API_KEY"]);
+		expect(getEnvApiKey("nvidia-nim")).toBe("test-nim-key");
+		delete process.env.NVIDIA_NIM_API_KEY;
 	});
 
 	it("returns undefined when no key is set", () => {
 		delete process.env.NVIDIA_API_KEY;
+		delete process.env.NVIDIA_NIM_API_KEY;
 
-		expect(findEnvKeys("nvidia")).toBeUndefined();
-		expect(getEnvApiKey("nvidia")).toBeUndefined();
+		expect(findEnvKeys("nvidia-nim")).toBeUndefined();
+		expect(getEnvApiKey("nvidia-nim")).toBeUndefined();
 	});
 
 	it("retrieves a model with correct properties", () => {
-		const model = getModel("nvidia", "meta/llama-3.3-70b-instruct");
+		const model = getModel("nvidia-nim", "meta/llama-3.3-70b-instruct");
 		expect(model).toBeDefined();
 		expect(model.api).toBe("openai-completions");
-		expect(model.provider).toBe("nvidia");
+		expect(model.provider).toBe("nvidia-nim");
 		expect(model.baseUrl).toBe("https://integrate.api.nvidia.com/v1");
 		expect(model.featured).toBe(true);
 	});

@@ -47,7 +47,7 @@ describe("startup onboarding decision", () => {
 	test("skips onboarding on first launch when a model is already configured and ready", () => {
 		const state = makeState({
 			onboardingShown: false,
-			model: makeModel("nvidia"),
+			model: makeModel("nvidia-nim"),
 			modelHasAuth: true,
 			authSource: "environment",
 		});

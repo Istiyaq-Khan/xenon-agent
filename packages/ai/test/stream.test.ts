@@ -433,7 +433,7 @@ describe("Generate E2E Tests", () => {
 	});
 
 	describe.skipIf(!nvidiaApiKey)("NVIDIA NIM Provider (meta/llama-3.3-70b-instruct)", () => {
-		const llm = getModel("nvidia", "meta/llama-3.3-70b-instruct");
+		const llm = getModel("nvidia-nim", "meta/llama-3.3-70b-instruct");
 
 		it("should complete basic text generation", { retry: 3 }, async () => {
 			await basicTextGeneration(llm);

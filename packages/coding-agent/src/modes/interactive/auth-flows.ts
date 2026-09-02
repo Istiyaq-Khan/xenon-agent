@@ -378,10 +378,12 @@ export class ProviderAuthFlows {
 				throw new Error("API key cannot be empty.");
 			}
 
-			this.host.modelRegistry.authStorage.set(providerId, { type: "api_key", key: apiKey });
+			const targetProviderId = providerId === "nvidia" || providerId === "NVIDIA NIM" ? "nvidia-nim" : providerId;
+
+			this.host.modelRegistry.authStorage.set(targetProviderId, { type: "api_key", key: apiKey });
 
 			closeDialog();
-			return await this.completeProviderAuthentication(providerId, providerName, "api_key", undefined, kind);
+			return await this.completeProviderAuthentication(targetProviderId, providerName, "api_key", undefined, kind);
 		} catch (error: unknown) {
 			closeDialog();
 			const errorMsg = error instanceof Error ? error.message : String(error);

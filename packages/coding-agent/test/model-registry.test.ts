@@ -1105,13 +1105,13 @@ describe("ModelRegistry", () => {
 			delete process.env.NVIDIA_API_KEY;
 			try {
 				const registry = ModelRegistry.create(authStorage, modelsJsonPath);
-				expect(registry.getAvailable().some((m) => m.provider === "nvidia")).toBe(false);
+				expect(registry.getAvailable().some((m) => m.provider === "nvidia-nim")).toBe(false);
 
 				const otherProcessAuth = AuthStorage.create(join(tempDir, "auth.json"));
 				otherProcessAuth.set("nvidia", { type: "api_key", key: "test-key" });
 
 				registry.refresh();
-				expect(registry.getAvailable().some((m) => m.provider === "nvidia")).toBe(true);
+				expect(registry.getAvailable().some((m) => m.provider === "nvidia-nim")).toBe(true);
 			} finally {
 				if (savedEnvKey !== undefined) {
 					process.env.NVIDIA_API_KEY = savedEnvKey;
