@@ -3,7 +3,10 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import resource
+try:
+    import resource
+except ImportError:
+    resource = None
 import signal
 import socket
 import subprocess

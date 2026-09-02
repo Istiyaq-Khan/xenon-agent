@@ -13,6 +13,3 @@ packages = ["src/agent_observe"]
 
 [tool.xenon_agent.skill]
 import = "agent_observe"
-
-[tool.xenon_agent.skill]
-import = "agent_observe"

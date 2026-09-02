@@ -10,15 +10,15 @@ describe("SettingsManager - External Edit Preservation", () => {
 
 	beforeEach(() => {
 		if (existsSync(testDir)) {
-			rmSync(testDir, { recursive: true });
+			rmSync(testDir, { recursive: true, force: true });
 		}
 		mkdirSync(agentDir, { recursive: true });
-		mkdirSync(join(projectDir, ".xenon", "agent"), { recursive: true });
+		mkdirSync(join(projectDir, ".xenon-agent"), { recursive: true });
 	});
 
 	afterEach(() => {
 		if (existsSync(testDir)) {
-			rmSync(testDir, { recursive: true });
+			rmSync(testDir, { recursive: true, force: true });
 		}
 	});
 
@@ -78,7 +78,7 @@ describe("SettingsManager - External Edit Preservation", () => {
 	});
 
 	it("should preserve external project settings changes when updating unrelated project field", async () => {
-		const projectSettingsPath = join(projectDir, ".xenon", "agent", "settings.json");
+		const projectSettingsPath = join(projectDir, ".xenon-agent", "settings.json");
 		writeFileSync(
 			projectSettingsPath,
 			JSON.stringify({
@@ -102,7 +102,7 @@ describe("SettingsManager - External Edit Preservation", () => {
 	});
 
 	it("should let in-memory project changes override external changes for the same project field", async () => {
-		const projectSettingsPath = join(projectDir, ".xenon", "agent", "settings.json");
+		const projectSettingsPath = join(projectDir, ".xenon-agent", "settings.json");
 		writeFileSync(
 			projectSettingsPath,
 			JSON.stringify({

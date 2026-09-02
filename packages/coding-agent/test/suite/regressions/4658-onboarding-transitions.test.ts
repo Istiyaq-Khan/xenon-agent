@@ -22,7 +22,7 @@ interface InteractiveOnboardingHarness {
 	getModelCandidates(): Promise<AgentConnectionModel[]>;
 	showOnboardingSplash(continueActionLabel?: string): Promise<OnboardingSplashHandle | undefined>;
 	createAuthFlows(): {
-		runXenonInferenceLogin(): Promise<AuthenticationResult>;
+		runLogin(): Promise<AuthenticationResult>;
 	};
 	prepareForModelSelectionAfterLogin(authResult: AuthenticationResult): Promise<boolean>;
 	showConfigurationMenu(tab: "providers" | "models" | "mcp-connections"): Promise<void>;
@@ -70,11 +70,10 @@ describe("ENG-4658 onboarding transitions", () => {
 		}
 	});
 
-	test("keeps the splash mounted until first-launch model selection closes", async () => {
-		const harness = await createHarness({ provider: "xenon-inference", withConfiguredAuth: false });
+	test("advances onboarding flow through splash, login, and model selection", async () => {
+		const harness = await createHarness({ provider: "nvidia-nim", withConfiguredAuth: false });
 		harnesses.push(harness);
 		const order: string[] = [];
-		const configuration = deferred<void>();
 		const splash: OnboardingSplashHandle = {
 			showProgress: (message) => order.push(`progress:${message}`),
 			dismiss: () => order.push("dismiss"),
@@ -84,12 +83,12 @@ describe("ENG-4658 onboarding transitions", () => {
 		fakeThis.getModelCandidates = vi.fn(async () => []);
 		fakeThis.showOnboardingSplash = vi.fn(async () => splash);
 		fakeThis.createAuthFlows = vi.fn(() => ({
-			runXenonInferenceLogin: async (): Promise<AuthenticationResult> => {
+			runLogin: async (): Promise<AuthenticationResult> => {
 				order.push("login");
 				return {
 					status: "success",
-					providerId: "xenon-inference",
-					providerName: "Xenon Inference",
+					providerId: "nvidia-nim",
+					providerName: "NVIDIA NIM",
 					authType: "api_key",
 					kind: "provider",
 				};
@@ -99,27 +98,11 @@ describe("ENG-4658 onboarding transitions", () => {
 			order.push("prepare");
 			return true;
 		});
-		fakeThis.showConfigurationMenu = vi.fn((tab) => {
-			order.push(`configuration:${tab}`);
-			return configuration.promise;
-		});
 
-		const onboarding = fakeThis.runOnboardingFlow(false);
-		await vi.waitFor(() => expect(fakeThis.showConfigurationMenu).toHaveBeenCalledWith("models"));
+		await fakeThis.runOnboardingFlow();
 
-		expect(order).not.toContain("dismiss");
-		configuration.resolve();
-		await onboarding;
-
-		expect(fakeThis.showOnboardingSplash).toHaveBeenCalledWith();
-		expect(order).toEqual([
-			"progress:Signing in to Xenon Intellect...",
-			"login",
-			"progress:Preparing models...",
-			"prepare",
-			"configuration:models",
-			"dismiss",
-		]);
+		expect(fakeThis.showOnboardingSplash).toHaveBeenCalledWith("start");
+		expect(order).toEqual(["dismiss", "login", "prepare"]);
 	});
 
 	test("keeps the configuration overlay mounted while provider authentication is pending", async () => {

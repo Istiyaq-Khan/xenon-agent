@@ -30,7 +30,7 @@ describe("XenonOnboardingSplashComponent", () => {
 
 		expect(lines).toHaveLength(36);
 		expect(output).toContain("Welcome to XENON Agent");
-		expect(output).toContain("Press Enter to login with Xenon Intellect");
+		expect(output).toContain("Press Enter to start");
 		expect(output).toContain("·");
 		expect(output).not.toContain("xenon agent");
 		expect(output).not.toContain("Research and infrastructure assistant for high-context work.");
@@ -87,7 +87,7 @@ describe("XenonOnboardingSplashComponent", () => {
 		const output = stripAnsi(component.render(100).join("\n"));
 
 		expect(output).toContain("Press Enter to choose a model");
-		expect(output).not.toContain("Press Enter to login with Xenon Intellect");
+		expect(output).not.toContain("Press Enter to start");
 	});
 
 	it("shows progress and ignores input while onboarding advances", () => {
@@ -129,7 +129,7 @@ describe("XenonOnboardingSplashComponent", () => {
 		expect(renderRequests).toBe(3);
 		expect(secondRender).not.toBe(firstRender);
 		expect(secondRender).toContain("Welcome to XENON Agent");
-		expect(secondRender).toContain("Press Enter to login with Xenon Intellect");
+		expect(secondRender).toContain("Press Enter to start");
 	});
 
 	it("centers stacked content in narrow terminals", () => {
@@ -141,7 +141,7 @@ describe("XenonOnboardingSplashComponent", () => {
 		const rendered = component.render(60).map((line) => stripAnsi(line));
 		const logoLine = rendered.find((line) => line.includes(XENON_BUTTERFLY_LOGO.split("\n")[0].trim()));
 		const brandLine = rendered.find((line) => line.includes("Welcome to XENON Agent"));
-		const hintLine = rendered.find((line) => line.includes("Press Enter to login with Xenon Intellect"));
+		const hintLine = rendered.find((line) => line.includes("Press Enter to start"));
 
 		expect(logoLine?.search(/\S/)).toBeGreaterThan(0);
 		expect(brandLine?.search(/\S/)).toBeGreaterThan(0);

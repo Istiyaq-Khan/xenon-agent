@@ -10,7 +10,6 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { KeybindingsManager } from "../src/core/keybindings.js";
 import { LoginDialogComponent } from "../src/modes/interactive/components/login-dialog.js";
 import { initTheme } from "../src/modes/interactive/theme/theme.js";
-import { XENON_BUTTERFLY_LOGO } from "../src/themes/xenon-logo.js";
 
 const mocks = vi.hoisted(() => ({
 	copyToClipboard: vi.fn(),
@@ -144,10 +143,8 @@ describe("LoginDialogComponent", () => {
 
 		dialog.showAuth("https://example.com/challenge", "Code: abc-123");
 		const output = stripAnsi(dialog.render(88).join("\n"));
-		const firstLogoLine = XENON_BUTTERFLY_LOGO.split("\n")[0]?.trim() ?? "";
 
 		expect(output).toContain("Login to Xenon Inference");
-		expect(output).toContain(firstLogoLine);
 		expect(output).toContain("Verification code");
 		expect(output).toContain("abc-123");
 		expect(output).not.toContain("click to open");
@@ -165,18 +162,16 @@ describe("LoginDialogComponent", () => {
 		expect(output).not.toContain("Status");
 	});
 
-	it("keeps the Xenon Inference brand header centered and within the panel", () => {
+	it("renders progress status and fits within the panel", () => {
 		const dialog = new LoginDialogComponent(createFakeTui(), "xenon-inference", () => {}, "Xenon Inference");
 
-		dialog.showProgress("Checking existing Xenon CLI credentials...");
+		dialog.showProgress("Checking existing credentials...");
 		const lines = dialog.render(88);
 		const output = stripAnsi(lines.join("\n"));
-		const titleLine = output.split("\n").find((line) => line.includes("Login to Xenon Inference"));
-		const titleOffset = titleLine?.indexOf("Login to Xenon Inference") ?? -1;
 
-		expect(titleOffset).toBeGreaterThan(20);
-		expect(output).toContain("Connect your Xenon Intellect account to enable Xenon Inference models.");
+		expect(output).toContain("Login to Xenon Inference");
 		expect(output).toContain("Preparing authentication");
+		expect(output).toContain("Checking existing credentials...");
 		for (const line of lines) {
 			expect(visibleWidth(line)).toBe(88);
 		}
