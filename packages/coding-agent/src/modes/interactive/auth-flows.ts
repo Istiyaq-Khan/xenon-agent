@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { getProviders, type OAuthProviderId, type OAuthSelectPrompt } from "@earendil-works/pi-ai";
+import { getProviders, normalizeProviderId, type OAuthProviderId, type OAuthSelectPrompt } from "@earendil-works/pi-ai";
 import type { OverlayHandle, TUI } from "@earendil-works/pi-tui";
 import { getAuthPath, getDocsPath } from "../../config.js";
 import type { ModelRegistry } from "../../core/model-registry.js";
@@ -249,6 +249,15 @@ export class ProviderAuthFlows {
 			category: "service",
 		});
 
+		// Explicitly ensure nvidia-nim is included with display name "NVIDIA NIM"
+		if (!options.some((opt) => opt.id === "nvidia-nim")) {
+			options.push({
+				id: "nvidia-nim",
+				name: "NVIDIA NIM",
+				authType: "api_key",
+			});
+		}
+
 		const filteredOptions = authType ? options.filter((option) => option.authType === authType) : options;
 		return filteredOptions.sort(compareAuthSelectorProviders);
 	}
@@ -378,7 +387,7 @@ export class ProviderAuthFlows {
 				throw new Error("API key cannot be empty.");
 			}
 
-			const targetProviderId = providerId === "nvidia" || providerId === "NVIDIA NIM" ? "nvidia-nim" : providerId;
+			const targetProviderId = normalizeProviderId(providerId);
 
 			this.host.modelRegistry.authStorage.set(targetProviderId, { type: "api_key", key: apiKey });
 

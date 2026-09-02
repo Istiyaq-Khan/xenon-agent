@@ -2725,7 +2725,7 @@ export class DaemonSupervisor {
 				await client.authenticateWorker(
 					worker.descriptor.authenticationToken,
 					this.supervisorAuthenticationClaim(),
-					1000,
+					Math.min(3000, Math.max(1000, deadline - Date.now())),
 				);
 				await this.assertRecoveryAllowed();
 				client.onFrame((frame) => this.handleWorkerFrame(worker, frame));

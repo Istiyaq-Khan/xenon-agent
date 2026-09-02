@@ -1,0 +1,1 @@
+- Fixed NVIDIA NIM credential lookup in auth storage and improved daemon worker handshake resilience.

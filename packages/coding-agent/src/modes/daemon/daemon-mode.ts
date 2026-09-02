@@ -3289,6 +3289,7 @@ export class AgentDaemon {
 					typeof parsed.supervisorSocketPath !== "string"
 				) {
 					clearParsedAdmission();
+					this.log(`worker_auth failed: received invalid or malformed payload: ${JSON.stringify(parsed)}`);
 					this.write(client, failure(commandId, "worker_auth", "Worker authentication failed"));
 					client.socket.end();
 					return;
@@ -3304,7 +3305,10 @@ export class AgentDaemon {
 				let ownerFingerprint: string;
 				try {
 					ownerFingerprint = await this.assertSupervisorClaimCurrent(claim);
-				} catch {
+				} catch (error) {
+					this.log(
+						`worker_auth rejected claim: ${error instanceof Error ? error.message : String(error)} for claim ${JSON.stringify(claim)}`,
+					);
 					this.write(client, failure(commandId, "worker_auth", "supervisor_generation_stale"));
 					client.socket.end();
 					return;

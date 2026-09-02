@@ -11,7 +11,7 @@ import type {
 	ChatCompletionToolMessageParam,
 } from "openai/resources/chat/completions.js";
 import { getAnthropicCacheWriteCost, hasStandardAnthropicCachePricing } from "../cache-pricing.js";
-import { getEnvApiKey, getXenonTeamId } from "../env-api-keys.js";
+import { getEnvApiKey, getXenonTeamId, normalizeProviderId } from "../env-api-keys.js";
 import { calculateCost, clampThinkingLevel } from "../models.js";
 import type {
 	AssistantMessage,
@@ -164,6 +164,11 @@ export const streamOpenAICompletions: StreamFunction<"openai-completions", OpenA
 
 		try {
 			const apiKey = options?.apiKey || getEnvApiKey(model.provider) || "";
+			const isNvidiaNim =
+				normalizeProviderId(model.provider) === "nvidia-nim" || model.baseUrl.includes("api.nvidia.com");
+			if (isNvidiaNim && (!apiKey || apiKey.trim().length === 0)) {
+				throw new Error("No API key configured for NVIDIA NIM. Please run /login or set NVIDIA_API_KEY.");
+			}
 			const compat = getCompat(model);
 			const cacheRetention = resolveCacheRetention(options?.cacheRetention);
 			const cacheControl = getCompatCacheControl(compat, cacheRetention);
@@ -489,8 +494,12 @@ export const streamSimpleOpenAICompletions: StreamFunction<"openai-completions",
 	context: Context,
 	options?: SimpleStreamOptions,
 ): AssistantMessageEventStream => {
+	const isNvidiaNim = normalizeProviderId(model.provider) === "nvidia-nim" || model.baseUrl.includes("api.nvidia.com");
 	const apiKey = options?.apiKey || getEnvApiKey(model.provider);
 	if (!apiKey) {
+		if (isNvidiaNim) {
+			throw new Error("No API key configured for NVIDIA NIM. Please run /login or set NVIDIA_API_KEY.");
+		}
 		throw new Error(`No API key for provider: ${model.provider}`);
 	}
 
@@ -517,11 +526,16 @@ function createClient(
 	sessionId?: string,
 	compat: ResolvedOpenAICompletionsCompat = getCompat(model),
 ) {
+	const isNvidiaNim = normalizeProviderId(model.provider) === "nvidia-nim" || model.baseUrl.includes("api.nvidia.com");
+
 	if (!apiKey) {
 		const envKey = getEnvApiKey(model.provider);
 		if (envKey) {
 			apiKey = envKey;
 		} else if (!process.env.OPENAI_API_KEY) {
+			if (isNvidiaNim) {
+				throw new Error("No API key configured for NVIDIA NIM. Please run /login or set NVIDIA_API_KEY.");
+			}
 			throw new Error(
 				`${model.provider} API key is required. Set ${model.provider === "nvidia-nim" ? "NVIDIA_API_KEY" : "OPENAI_API_KEY"} environment variable or pass it as an argument.`,
 			);
@@ -535,8 +549,12 @@ function createClient(
 		.replace(/^["']|["']$/g, "")
 		.trim();
 
+	if (isNvidiaNim && (!apiKey || apiKey.length === 0)) {
+		throw new Error("No API key configured for NVIDIA NIM. Please run /login or set NVIDIA_API_KEY.");
+	}
+
 	const headers = { ...model.headers };
-	if (model.provider === "nvidia-nim" || model.provider === "nvidia" || model.baseUrl.includes("api.nvidia.com")) {
+	if (isNvidiaNim) {
 		headers.Accept = "text/event-stream";
 		headers["Content-Type"] = "application/json";
 		headers.Authorization = `Bearer ${apiKey}`;
@@ -694,6 +712,13 @@ function buildParams(
 			if (routing.order) gatewayOptions.order = routing.order;
 			(params as any).providerOptions = { gateway: gatewayOptions };
 		}
+	}
+
+	if (normalizeProviderId(model.provider) === "nvidia-nim" || model.baseUrl.includes("api.nvidia.com")) {
+		delete (params as any).store;
+		delete (params as any).metadata;
+		delete (params as any).prompt_cache_key;
+		delete (params as any).prompt_cache_retention;
 	}
 
 	return params;

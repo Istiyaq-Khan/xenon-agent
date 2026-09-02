@@ -1,4 +1,5 @@
 import { win32 } from "node:path";
+import { normalizeProviderId } from "@earendil-works/pi-ai";
 import { getOAuthProviders } from "@earendil-works/pi-ai/oauth";
 import {
 	Container,
@@ -65,8 +66,10 @@ export class LoginDialogComponent extends Container implements Focusable {
 		super();
 		this.tui = tui;
 
-		const providerInfo = getOAuthProviders().find((p) => p.id === providerId);
-		const providerName = providerNameOverride || providerInfo?.name || providerId;
+		const canonicalId = normalizeProviderId(providerId);
+		const providerInfo = getOAuthProviders().find((p) => p.id === canonicalId || p.id === providerId);
+		const defaultName = canonicalId === "nvidia-nim" ? "NVIDIA NIM" : providerId;
+		const providerName = providerNameOverride || providerInfo?.name || defaultName;
 		const title = titleOverride ?? `Login to ${providerName}`;
 
 		const panel = new MenuPanel({

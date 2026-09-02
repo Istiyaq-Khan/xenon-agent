@@ -1,0 +1,1 @@
+- Fixed NVIDIA NIM provider authentication resolution and guarded against unauthenticated completion dispatches.

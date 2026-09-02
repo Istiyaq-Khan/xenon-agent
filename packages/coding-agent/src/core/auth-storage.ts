@@ -10,11 +10,12 @@ import { createHash } from "node:crypto";
 import {
 	findEnvKeys,
 	getEnvApiKey,
+	normalizeProviderId,
 	type OAuthCredentials,
 	type OAuthLoginCallbacks,
 	type OAuthProviderId,
 } from "@earendil-works/pi-ai";
-import { getOAuthApiKey, getOAuthProvider, getOAuthProviders } from "@earendil-works/pi-ai/oauth";
+import { getOAuthProvider, getOAuthProviders } from "@earendil-works/pi-ai/oauth";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import lockfile from "proper-lockfile";
@@ -333,19 +334,41 @@ export class AuthStorage {
 	}
 
 	private getStoredCredential(provider: string): AuthCredential | undefined {
-		if (provider === "nvidia-nim" || provider === "nvidia" || provider === "NVIDIA NIM") {
-			return this.data["nvidia-nim"] ?? this.data.nvidia ?? this.data["NVIDIA NIM"];
+		this.reload();
+		const canonical = normalizeProviderId(provider);
+		let cred: AuthCredential | undefined;
+		if (canonical === "nvidia-nim") {
+			cred =
+				this.data["nvidia-nim"] ??
+				this.data.nvidia ??
+				this.data["NVIDIA NIM"] ??
+				this.data.nvidia_nim ??
+				this.data.NVIDIA;
+		} else {
+			cred = this.data[canonical] ?? this.data[provider];
 		}
-		return this.data[provider];
+		if (cred && cred.type === "api_key" && typeof cred.key === "string" && !cred.key.startsWith("!")) {
+			return {
+				...cred,
+				key: cred.key
+					.trim()
+					.replace(/^["']|["']$/g, "")
+					.trim(),
+			};
+		}
+		return cred;
 	}
 
 	private getRuntimeAuthCandidate(provider: string): AuthSourceCandidate | undefined {
-		let apiKey = this.runtimeOverrides.get(provider);
-		if (!apiKey && (provider === "nvidia-nim" || provider === "nvidia" || provider === "NVIDIA NIM")) {
+		const canonical = normalizeProviderId(provider);
+		let apiKey = this.runtimeOverrides.get(canonical) ?? this.runtimeOverrides.get(provider);
+		if (!apiKey && canonical === "nvidia-nim") {
 			apiKey =
 				this.runtimeOverrides.get("nvidia-nim") ??
 				this.runtimeOverrides.get("nvidia") ??
-				this.runtimeOverrides.get("NVIDIA NIM");
+				this.runtimeOverrides.get("NVIDIA NIM") ??
+				this.runtimeOverrides.get("nvidia_nim") ??
+				this.runtimeOverrides.get("NVIDIA");
 		}
 		if (!apiKey) {
 			return undefined;
@@ -355,8 +378,11 @@ export class AuthStorage {
 			...this.createAuthSourceCandidate({
 				configured: false,
 				source: "runtime",
-				identityMaterial: provider,
-				valueMaterial: apiKey,
+				identityMaterial: canonical,
+				valueMaterial: apiKey
+					.trim()
+					.replace(/^["']|["']$/g, "")
+					.trim(),
 			}),
 		};
 	}
@@ -365,12 +391,15 @@ export class AuthStorage {
 		provider: string,
 		options?: { resolveCommandValue?: boolean; resolvedCommandValue?: string },
 	): AuthSourceCandidate | undefined {
-		const credential = this.getStoredCredential(provider);
+		const canonical = normalizeProviderId(provider);
+		const credential = this.getStoredCredential(canonical);
 		if (!credential) {
 			return undefined;
 		}
 		const isCommandApiKey = credential.type === "api_key" && credential.key.startsWith("!");
-		const identityMaterial = isCommandApiKey ? `api_key:command:${credential.key}` : `${provider}:${credential.type}`;
+		const identityMaterial = isCommandApiKey
+			? `api_key:command:${credential.key}`
+			: `${canonical}:${credential.type}`;
 		const commandValueMaterial =
 			isCommandApiKey && options?.resolvedCommandValue !== undefined
 				? `api_key:command:${credential.key}\0${options.resolvedCommandValue}`
@@ -383,28 +412,32 @@ export class AuthStorage {
 				commandValueMaterial ??
 				(isCommandApiKey && !options?.resolveCommandValue
 					? undefined
-					: this.getStoredCredentialValueMaterial(provider, credential)),
+					: this.getStoredCredentialValueMaterial(canonical, credential)),
 			resolveValueMaterial: isCommandApiKey
-				? () => this.getStoredCredentialValueMaterial(provider, credential)
+				? () => this.getStoredCredentialValueMaterial(canonical, credential)
 				: undefined,
 		});
 	}
 
 	private getEnvironmentAuthCandidate(provider: string): AuthSourceCandidate | undefined {
-		const envKeys = findEnvKeys(provider);
+		const canonical = normalizeProviderId(provider);
+		const envKeys = findEnvKeys(canonical);
 		const envKey = envKeys?.[0];
-		const apiKey = getEnvApiKey(provider);
+		const apiKey = getEnvApiKey(canonical);
 		if (!apiKey) {
 			return undefined;
 		}
 		const label = envKey ?? "ambient credentials";
-		const identityMaterial = envKey ?? this.getAmbientEnvironmentIdentityMaterial(provider);
+		const identityMaterial = envKey ?? this.getAmbientEnvironmentIdentityMaterial(canonical);
 		return this.createAuthSourceCandidate({
 			configured: false,
 			source: "environment",
 			label,
 			identityMaterial,
-			valueMaterial: `${identityMaterial}\0${apiKey}`,
+			valueMaterial: `${identityMaterial}\0${apiKey
+				.trim()
+				.replace(/^["']|["']$/g, "")
+				.trim()}`,
 		});
 	}
 
@@ -633,9 +666,15 @@ export class AuthStorage {
 	 * Set credential for a provider.
 	 */
 	set(provider: string, credential: AuthCredential): void {
-		const targetProvider = provider === "nvidia" || provider === "NVIDIA NIM" ? "nvidia-nim" : provider;
-		if (credential.type === "api_key" && typeof credential.key === "string") {
-			credential = { ...credential, key: credential.key.trim() };
+		const targetProvider = normalizeProviderId(provider);
+		if (credential.type === "api_key" && typeof credential.key === "string" && !credential.key.startsWith("!")) {
+			credential = {
+				...credential,
+				key: credential.key
+					.trim()
+					.replace(/^["']|["']$/g, "")
+					.trim(),
+			};
 		}
 		this.clearStaleAuthSource(targetProvider, "stored");
 		this.data[targetProvider] = credential;
@@ -646,9 +685,15 @@ export class AuthStorage {
 	 * Remove credential for a provider.
 	 */
 	remove(provider: string): void {
-		const targetProvider = provider === "nvidia" || provider === "NVIDIA NIM" ? "nvidia-nim" : provider;
+		const targetProvider = normalizeProviderId(provider);
 		this.clearStaleAuthSource(targetProvider, "stored");
 		delete this.data[targetProvider];
+		if (targetProvider === "nvidia-nim") {
+			delete this.data.nvidia;
+			delete this.data["NVIDIA NIM"];
+			delete this.data.nvidia_nim;
+			delete this.data.NVIDIA;
+		}
 		this.persistProviderChange(targetProvider, undefined);
 	}
 
@@ -659,15 +704,29 @@ export class AuthStorage {
 	 * and idempotent — in-memory state is only updated after the write succeeds.
 	 */
 	removeVerified(provider: string): void {
-		const targetProvider = provider === "nvidia" || provider === "NVIDIA NIM" ? "nvidia-nim" : provider;
+		const targetProvider = normalizeProviderId(provider);
 		this.storage.withLock((current) => {
 			const currentData = this.parseStorageData(current);
-			if (!(targetProvider in currentData)) return { result: undefined };
+			if (!(targetProvider in currentData) && !(provider in currentData)) return { result: undefined };
 			const merged: AuthStorageData = { ...currentData };
 			delete merged[targetProvider];
+			delete merged[provider];
+			if (targetProvider === "nvidia-nim") {
+				delete merged.nvidia;
+				delete merged["NVIDIA NIM"];
+				delete merged.nvidia_nim;
+				delete merged.NVIDIA;
+			}
 			return { result: undefined, next: JSON.stringify(merged, null, 2) };
 		});
 		delete this.data[targetProvider];
+		delete this.data[provider];
+		if (targetProvider === "nvidia-nim") {
+			delete this.data.nvidia;
+			delete this.data["NVIDIA NIM"];
+			delete this.data.nvidia_nim;
+			delete this.data.NVIDIA;
+		}
 		// Post-success only: a failed removal must not make a stale-marked credential selectable again.
 		this.clearStaleAuthSource(targetProvider, "stored");
 	}
@@ -676,6 +735,7 @@ export class AuthStorage {
 	 * List all providers with credentials.
 	 */
 	list(): string[] {
+		this.reload();
 		return Object.keys(this.data);
 	}
 
@@ -715,6 +775,27 @@ export class AuthStorage {
 	}
 
 	/**
+	 * Clear recorded error for a provider (e.g. after successful auth)
+	 */
+	clearError(_provider: string): void {
+		this.errors = [];
+	}
+
+	/**
+	 * Check if there were any errors loading credentials.
+	 */
+	getLoadError(): Error | null {
+		return this.loadError;
+	}
+
+	/**
+	 * Get all errors that occurred during credential operations.
+	 */
+	getErrors(): Error[] {
+		return [...this.errors];
+	}
+
+	/**
 	 * Login to an OAuth provider.
 	 */
 	async login(providerId: OAuthProviderId, callbacks: OAuthLoginCallbacks): Promise<void> {
@@ -728,57 +809,57 @@ export class AuthStorage {
 	}
 
 	/**
-	 * Logout from a provider.
+	 * Log out of a provider by removing its credentials from auth.json.
 	 */
 	logout(provider: string): void {
-		this.remove(provider);
+		this.removeVerified(provider);
 	}
 
 	/**
-	 * Refresh OAuth token with backend locking to prevent race conditions.
-	 * Multiple pi instances may try to refresh simultaneously when tokens expire.
+	 * Internal token refresh that handles file locking.
 	 */
-	private async refreshOAuthTokenWithLock(
-		providerId: OAuthProviderId,
-	): Promise<{ apiKey: string; newCredentials: OAuthCredentials } | null> {
-		const provider = getOAuthProvider(providerId);
-		if (!provider) {
-			return null;
-		}
-
-		const result = await this.storage.withLockAsync(async (current) => {
+	private async refreshOAuthTokenWithLock(providerId: string): Promise<{ apiKey: string } | null> {
+		const result = await this.storage.withLockAsync<{ apiKey: string } | null>(async (current) => {
 			const currentData = this.parseStorageData(current);
-			this.data = currentData;
-			this.loadError = null;
-
 			const cred = currentData[providerId];
-			if (cred?.type !== "oauth") {
+
+			if (!cred || cred.type !== "oauth") {
 				return { result: null };
 			}
 
+			// If another instance already refreshed the token, use that.
 			if (Date.now() < cred.expires) {
-				return { result: { apiKey: provider.getApiKey(cred), newCredentials: cred } };
-			}
-
-			const oauthCreds: Record<string, OAuthCredentials> = {};
-			for (const [key, value] of Object.entries(currentData)) {
-				if (value.type === "oauth") {
-					oauthCreds[key] = value;
+				const provider = getOAuthProvider(providerId);
+				if (!provider) {
+					return { result: null };
 				}
+				this.data = currentData;
+				this.loadError = null;
+				return { result: { apiKey: provider.getApiKey(cred) } };
 			}
 
-			const refreshed = await getOAuthApiKey(providerId, oauthCreds);
-			if (!refreshed) {
+			// Refresh the token.
+			const provider = getOAuthProvider(providerId);
+			if (!provider) {
 				return { result: null };
 			}
 
+			const refreshed = await provider.refreshToken(cred);
+			const refreshedCred: OAuthCredential = {
+				type: "oauth",
+				...refreshed,
+			};
 			const merged: AuthStorageData = {
 				...currentData,
-				[providerId]: { type: "oauth", ...refreshed.newCredentials },
+				[providerId]: refreshedCred,
 			};
+
 			this.data = merged;
 			this.loadError = null;
-			return { result: refreshed, next: JSON.stringify(merged, null, 2) };
+			return {
+				result: { apiKey: provider.getApiKey(refreshedCred) },
+				next: JSON.stringify(merged, null, 2),
+			};
 		});
 
 		return result;
@@ -796,50 +877,64 @@ export class AuthStorage {
 		providerId: string,
 		options?: { includeFallback?: boolean },
 	): Promise<AuthApiKeyResult> {
+		const canonical = normalizeProviderId(providerId);
 		// Runtime overrides take precedence over stored credentials and environment keys.
-		const runtimeCandidate = this.getRuntimeAuthCandidate(providerId);
-		let runtimeKey = this.runtimeOverrides.get(providerId);
-		if (!runtimeKey && (providerId === "nvidia-nim" || providerId === "nvidia" || providerId === "NVIDIA NIM")) {
+		const runtimeCandidate = this.getRuntimeAuthCandidate(canonical);
+		let runtimeKey = this.runtimeOverrides.get(canonical) ?? this.runtimeOverrides.get(providerId);
+		if (!runtimeKey && canonical === "nvidia-nim") {
 			runtimeKey =
 				this.runtimeOverrides.get("nvidia-nim") ??
 				this.runtimeOverrides.get("nvidia") ??
-				this.runtimeOverrides.get("NVIDIA NIM");
+				this.runtimeOverrides.get("NVIDIA NIM") ??
+				this.runtimeOverrides.get("nvidia_nim") ??
+				this.runtimeOverrides.get("NVIDIA");
 		}
-		if (runtimeKey && runtimeCandidate && !this.isAuthSourceStale(providerId, runtimeCandidate)) {
+		if (runtimeKey && runtimeCandidate && !this.isAuthSourceStale(canonical, runtimeCandidate)) {
+			const trimmedKey = runtimeKey
+				.trim()
+				.replace(/^["']|["']$/g, "")
+				.trim();
 			return {
-				apiKey: runtimeKey,
-				sourceToken: this.getAuthSourceTokenForCandidate(providerId, runtimeCandidate),
+				apiKey: trimmedKey,
+				sourceToken: this.getAuthSourceTokenForCandidate(canonical, runtimeCandidate),
 			};
 		}
 
-		const cred = this.getStoredCredential(providerId);
+		const cred = this.getStoredCredential(canonical);
 
 		if (cred?.type === "api_key") {
-			const storedCandidate = this.getStoredAuthCandidate(providerId);
-			if (storedCandidate && !this.isAuthSourceStale(providerId, storedCandidate)) {
-				const hasStaleRecord = this.getMatchingStaleAuthSources(providerId, storedCandidate).length > 0;
+			const storedCandidate = this.getStoredAuthCandidate(canonical);
+			if (storedCandidate && !this.isAuthSourceStale(canonical, storedCandidate)) {
+				const hasStaleRecord = this.getMatchingStaleAuthSources(canonical, storedCandidate).length > 0;
 				const apiKey =
 					cred.key.startsWith("!") && hasStaleRecord
 						? resolveConfigValueUncached(cred.key)
 						: resolveConfigValue(cred.key);
+				const trimmedApiKey =
+					apiKey !== undefined
+						? apiKey
+								.trim()
+								.replace(/^["']|["']$/g, "")
+								.trim()
+						: undefined;
 				const sourceToken =
-					apiKey === undefined
+					trimmedApiKey === undefined
 						? undefined
 						: this.getAuthSourceTokenForCandidate(
-								providerId,
+								canonical,
 								cred.key.startsWith("!")
-									? (this.getStoredAuthCandidate(providerId, { resolvedCommandValue: apiKey }) ??
+									? (this.getStoredAuthCandidate(canonical, { resolvedCommandValue: trimmedApiKey }) ??
 											storedCandidate)
 									: storedCandidate,
 							);
-				return { apiKey, sourceToken };
+				return { apiKey: trimmedApiKey, sourceToken };
 			}
 		}
 
 		if (cred?.type === "oauth") {
-			const storedCandidate = this.getStoredAuthCandidate(providerId);
-			if (storedCandidate && !this.isAuthSourceStale(providerId, storedCandidate)) {
-				const provider = getOAuthProvider(providerId);
+			const storedCandidate = this.getStoredAuthCandidate(canonical);
+			if (storedCandidate && !this.isAuthSourceStale(canonical, storedCandidate)) {
+				const provider = getOAuthProvider(canonical);
 				if (!provider) {
 					return {};
 				}
@@ -848,13 +943,13 @@ export class AuthStorage {
 
 				if (needsRefresh) {
 					try {
-						const result = await this.refreshOAuthTokenWithLock(providerId);
+						const result = await this.refreshOAuthTokenWithLock(canonical);
 						if (result) {
-							const refreshedCandidate = this.getStoredAuthCandidate(providerId);
+							const refreshedCandidate = this.getStoredAuthCandidate(canonical);
 							return {
 								apiKey: result.apiKey,
 								sourceToken: refreshedCandidate
-									? this.getAuthSourceTokenForCandidate(providerId, refreshedCandidate)
+									? this.getAuthSourceTokenForCandidate(canonical, refreshedCandidate)
 									: undefined,
 							};
 						}
@@ -862,14 +957,14 @@ export class AuthStorage {
 						this.recordError(error);
 						// A peer may have refreshed successfully; reload before treating this refresh as failed.
 						this.reload();
-						const updatedCred = this.data[providerId];
+						const updatedCred = this.getStoredCredential(canonical);
 
 						if (updatedCred?.type === "oauth" && Date.now() < updatedCred.expires) {
-							const updatedCandidate = this.getStoredAuthCandidate(providerId);
+							const updatedCandidate = this.getStoredAuthCandidate(canonical);
 							return {
 								apiKey: provider.getApiKey(updatedCred),
 								sourceToken: updatedCandidate
-									? this.getAuthSourceTokenForCandidate(providerId, updatedCandidate)
+									? this.getAuthSourceTokenForCandidate(canonical, updatedCandidate)
 									: undefined,
 							};
 						}
@@ -880,26 +975,38 @@ export class AuthStorage {
 				} else {
 					return {
 						apiKey: provider.getApiKey(cred),
-						sourceToken: this.getAuthSourceTokenForCandidate(providerId, storedCandidate),
+						sourceToken: this.getAuthSourceTokenForCandidate(canonical, storedCandidate),
 					};
 				}
 			}
 		}
 
-		const envCandidate = this.getEnvironmentAuthCandidate(providerId);
-		const envKey = getEnvApiKey(providerId);
-		if (envKey && envCandidate && !this.isAuthSourceStale(providerId, envCandidate)) {
+		const envCandidate = this.getEnvironmentAuthCandidate(canonical);
+		const envKey = getEnvApiKey(canonical);
+		if (envKey && envCandidate && !this.isAuthSourceStale(canonical, envCandidate)) {
+			const trimmedEnvKey = envKey
+				.trim()
+				.replace(/^["']|["']$/g, "")
+				.trim();
 			return {
-				apiKey: envKey,
-				sourceToken: this.getAuthSourceTokenForCandidate(providerId, envCandidate),
+				apiKey: trimmedEnvKey,
+				sourceToken: this.getAuthSourceTokenForCandidate(canonical, envCandidate),
 			};
 		}
 		if (options?.includeFallback !== false) {
-			const fallbackCandidate = this.getFallbackAuthCandidate(providerId);
-			if (fallbackCandidate && !this.isAuthSourceStale(providerId, fallbackCandidate)) {
+			const fallbackCandidate = this.getFallbackAuthCandidate(canonical);
+			if (fallbackCandidate && !this.isAuthSourceStale(canonical, fallbackCandidate)) {
+				const fallbackKey = this.fallbackResolver?.(canonical) ?? this.fallbackResolver?.(providerId);
+				const trimmedFallbackKey =
+					fallbackKey !== undefined
+						? fallbackKey
+								.trim()
+								.replace(/^["']|["']$/g, "")
+								.trim()
+						: undefined;
 				return {
-					apiKey: this.fallbackResolver?.(providerId) ?? undefined,
-					sourceToken: this.getAuthSourceTokenForCandidate(providerId, fallbackCandidate),
+					apiKey: trimmedFallbackKey,
+					sourceToken: this.getAuthSourceTokenForCandidate(canonical, fallbackCandidate),
 				};
 			}
 		}

@@ -89,23 +89,30 @@ function hasVertexAdcCredentials(): boolean {
 	return cachedVertexAdcCredentialsExists;
 }
 
+export function normalizeProviderId(id: string): string {
+	const trimmed = id.trim().toLowerCase();
+	if (trimmed === "nvidia" || trimmed === "nvidia-nim" || trimmed === "nvidia nim" || trimmed === "nvidia_nim") {
+		return "nvidia-nim";
+	}
+	return id;
+}
+
 function getApiKeyEnvVars(provider: string): readonly string[] | undefined {
-	if (provider === "github-copilot") {
+	const normalized = normalizeProviderId(provider);
+	if (normalized === "github-copilot") {
 		return ["COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"];
 	}
 
 	// ANTHROPIC_OAUTH_TOKEN takes precedence over ANTHROPIC_API_KEY
-	if (provider === "anthropic") {
+	if (normalized === "anthropic") {
 		return ["ANTHROPIC_OAUTH_TOKEN", "ANTHROPIC_API_KEY"];
 	}
 
-	if (provider === "nvidia" || provider === "nvidia-nim") {
+	if (normalized === "nvidia-nim") {
 		return ["NVIDIA_API_KEY", "NVIDIA_NIM_API_KEY"];
 	}
 
 	const envMap: Record<string, string> = {
-		nvidia: "NVIDIA_API_KEY",
-		"nvidia-nim": "NVIDIA_API_KEY",
 		openai: "OPENAI_API_KEY",
 		"azure-openai-responses": "AZURE_OPENAI_API_KEY",
 		deepseek: "DEEPSEEK_API_KEY",
@@ -135,7 +142,7 @@ function getApiKeyEnvVars(provider: string): readonly string[] | undefined {
 		"xiaomi-token-plan-sgp": "XIAOMI_TOKEN_PLAN_SGP_API_KEY",
 	};
 
-	const envVar = envMap[provider];
+	const envVar = envMap[normalized] ?? envMap[provider];
 	return envVar ? [envVar] : undefined;
 }
 
